@@ -1,0 +1,16 @@
+{
+  "name": "Nexus Admin",
+  "version": "1.0.0",
+  "structure": {
+    "ServerScriptService": {
+      "NexusAdmin": {
+        "Core": {
+          "Server": ["Main", "CommandManager", "RankManager", "DataStore", "CommandsList"],
+          "Shared": ["Config"],
+          "Client": ["ClientMain"]
+        },
+        "UI": ["MainUI", "Assets"]
+      }
+    }
+  }
+}
