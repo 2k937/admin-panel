@@ -4,9 +4,33 @@ local Config = {
     SystemName = "Nexus Admin",
     ThemeColor = Color3.fromRGB(45, 45, 45),
     AccentColor = Color3.fromRGB(0, 170, 255),
-    
+
+    -- Access Settings
+    Access = {
+        -- Minimum admin level required to open the panel from saved/manual ranks.
+        MinimumPanelLevel = 20,
+
+        -- Automatic protected owner role. This role is detected from the Roblox place owner
+        -- and cannot be manually assigned, removed, or overwritten by rank-management code.
+        PlaceOwner = {
+            Enabled = true,
+            Level = 255,
+            Name = "Place Owner",
+            Color = Color3.fromRGB(255, 0, 0),
+            Icon = "rbxassetid://0"
+        },
+
+        -- Optional group-rank panel access. Add entries like:
+        -- { GroupId = 123456, MinimumRank = 200, Level = 60, Name = "Group Admin" }
+        GroupRanks = {
+            Enabled = false,
+            Groups = {}
+        }
+    },
+
     -- Default Ranks
     DefaultRanks = {
+        [255] = {Name = "Place Owner", Level = 255, Color = Color3.fromRGB(255, 0, 0), Icon = "rbxassetid://0", Protected = true},
         [100] = {Name = "Creator", Level = 100, Color = Color3.fromRGB(255, 0, 0), Icon = "rbxassetid://0"},
         [80] = {Name = "Head Admin", Level = 80, Color = Color3.fromRGB(255, 120, 0), Icon = "rbxassetid://0"},
         [60] = {Name = "Admin", Level = 60, Color = Color3.fromRGB(255, 255, 0), Icon = "rbxassetid://0"},
@@ -14,7 +38,7 @@ local Config = {
         [20] = {Name = "Helper", Level = 20, Color = Color3.fromRGB(0, 255, 255), Icon = "rbxassetid://0"},
         [0] = {Name = "Player", Level = 0, Color = Color3.fromRGB(255, 255, 255), Icon = "rbxassetid://0"}
     },
-    
+
     -- Command Permission Overrides (Level)
     CommandLevels = {
         kick = 40,
@@ -61,7 +85,7 @@ local Config = {
         unview = 40,
         kill = 20
     },
-    
+
     -- Command Aliases
     Aliases = {
         k = "kick",

@@ -1,9 +1,11 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
+local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GetPermission = Instance.new("RemoteFunction")
 GetPermission.Name = "NexusAdmin_GetPermission"
 GetPermission.Parent = ReplicatedStorage
@@ -28,24 +30,6 @@ local NoClipEvent = Instance.new("RemoteEvent")
 NoClipEvent.Name = "NexusAdmin_NoClip"
 NoClipEvent.Parent = ReplicatedStorage
 
-GetPermission.OnServerInvoke = function(player)
-    local level = RankManager.GetPlayerRank(player)
-    return level >= 20 -- Minimum level to open panel (Helper)
-end
-
-ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
-    -- This allows executing commands from the UI without the prefix
-    local level = RankManager.GetPlayerRank(player)
-    if level >= 20 then
-        -- Add prefix if missing to use the same logic
-        local finalCmd = commandString
-        if commandString:sub(1, 1) ~= Config.Prefix then
-            finalCmd = Config.Prefix .. commandString
-        end
-        CommandManager.Execute(player, finalCmd)
-    end
-end)
-
 local function notifyPlayer(player, title, text)
     local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
     if not Remote then
@@ -56,20 +40,39 @@ local function notifyPlayer(player, title, text)
     Remote:FireClient(player, title, text)
 end
 
+GetPermission.OnServerInvoke = function(player)
+    return RankManager.GetPermissionData(player)
+end
+
+ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
+    if typeof(commandString) ~= "string" then
+        return
+    end
+
+    local permission = RankManager.GetPermissionData(player)
+    if permission.CanOpen then
+        -- Add prefix if missing to use the same logic as chat commands.
+        local finalCmd = commandString
+        if commandString:sub(1, 1) ~= Config.Prefix then
+            finalCmd = Config.Prefix .. commandString
+        end
+        CommandManager.Execute(player, finalCmd)
+    end
+end)
+
 Players.PlayerAdded:Connect(function(player)
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)
     end)
-    
-    -- Load rank
+
+    -- Load manual rank, then resolve effective owner/group/manual access.
     local level = RankManager.LoadPlayerRank(player)
-    if player.UserId == game.CreatorId then level = 255 end
-    local rankData = RankManager.GetRankData(level)
-    
-    if level >= 20 then
-        -- Welcome notification for admins
+    local permission = RankManager.GetPermissionData(player)
+
+    if permission.CanOpen then
+        -- Welcome notification for admins and group-rank users.
         task.wait(2) -- Wait for client to load
-        notifyPlayer(player, "Welcome, " .. player.DisplayName, "Rank: " .. rankData.Name .. " (Level " .. level .. ")")
+        notifyPlayer(player, "Welcome, " .. player.DisplayName, "Rank: " .. permission.RankName .. " (Level " .. tostring(level) .. ")")
     end
 end)
 

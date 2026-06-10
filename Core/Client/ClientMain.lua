@@ -4,33 +4,48 @@ local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+local PermissionData = nil
+
+local function canOpenFromPermission(permission)
+    if typeof(permission) == "table" then
+        PermissionData = permission
+        return permission.CanOpen == true
+    end
+
+    -- Backward compatibility if an older server returns only a boolean.
+    return permission == true
+end
+
+local function getPermission()
+    local permissionRemote = ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 5)
+    if not permissionRemote then
+        return false
+    end
+
+    local success, permission = pcall(function()
+        return permissionRemote:InvokeServer()
+    end)
+
+    return success and canOpenFromPermission(permission)
+end
 
 -- UI Keybind (default ';')
 local function togglePanel()
-    -- Request permission level from server
-    local success, canOpen = pcall(function()
-        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 1):InvokeServer()
-    end)
-    
-    if success and canOpen then
+    if getPermission() then
         -- Toggle Admin Panel Visibility
+        -- PermissionData contains Level, RankName, AccessSource, GroupId, and GroupRank.
         -- (Actual UI visibility logic here)
     end
 end
 
 -- Initialize Admin Button for Mobile/PC accessibility
 task.spawn(function()
-    local success, canOpen = pcall(function()
-        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 5):InvokeServer()
-    end)
-    
-    if success and canOpen then
+    if getPermission() then
         local MainUI = require(script.Parent.Parent.UI.MainUI)
-        MainUI.CreateAdminButton() -- Create the floating toggle button
+        MainUI.CreateAdminButton(PermissionData) -- Create the floating toggle button
     end
-end)
     -- If not canOpen, do absolutely nothing (no notifications, no prints)
-end
+end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
@@ -66,18 +81,18 @@ ReplicatedStorage:WaitForChild("NexusAdmin_Fly").OnClientEvent:Connect(function(
     local char = Player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
-    
+
     if flying then
         bv = Instance.new("BodyVelocity")
         bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
         bv.Velocity = Vector3.new(0, 0, 0)
         bv.Parent = hrp
-        
+
         bg = Instance.new("BodyGyro")
         bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
         bg.CFrame = hrp.CFrame
         bg.Parent = hrp
-        
+
         task.spawn(function()
             while flying do
                 local cam = workspace.CurrentCamera
