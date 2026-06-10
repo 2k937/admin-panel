@@ -2,28 +2,34 @@
 
 A professional, modern, and highly customizable Roblox admin system.
 
-## Features
+## 🚀 Features
 - **Modern Dashboard**: Sleek dark-themed UI with PC and Mobile support.
-- **Custom Rank System**: Create unlimited ranks with custom colors and icons.
+- **Custom Rank System**: Create unlimited ranks with custom colors and icons. Supports levels above 100.
+- **Permanent Ranking**: Use `:rank` and `:unrank` to permanently save player permissions via DataStores.
 - **50+ Commands**: Comprehensive set of commands for server management.
-- **Permission System**: Fine-grained control over command access levels.
-- **Logs**: Detailed logs for joins, commands, and punishments.
+- **Hierarchy System**: Secure permission checks ensuring lower ranks cannot affect higher ranks.
+- **Welcome Notifications**: Automatic greeting for authorized staff members.
+- **Silent Security**: Guests cannot see or open the admin panel (silent rejection).
 - **Anti-Exploit**: Built-in protection for basic server-side exploits.
 
-## Installation
-1. Insert the Nexus Admin model into your game.
-2. Move `NexusAdmin` to `ServerScriptService`.
-3. Configure the `Config` module in `Core/Shared/Config`.
-4. Publish your game to enable DataStores for rank saving.
+## 🛠 Installation
+1. Download the latest `NexusAdmin.rbxmx` from the [Releases](https://github.com/2k937/admin-panel/releases) page.
+2. Drag and drop the file into **Roblox Studio**.
+3. Move the `NexusAdmin` folder to `ServerScriptService`.
+4. Publish your game to enable **API Services (DataStores)**.
 
-## Default Ranks
-- Creator (100)
-- Head Admin (80)
-- Admin (60)
-- Moderator (40)
-- Helper (20)
+## 🎮 Default Ranks
+| Rank Name | Level | Description |
+|-----------|-------|-------------|
+| Creator | 255 | Full system access |
+| Head Admin | 80 | Can manage ranks below them |
+| Admin | 60 | Standard moderation access |
+| Moderator | 40 | Basic moderation access |
+| Helper | 20 | Entry-level access |
 
-## Commands List
-(Refer to the UI or `CommandsList.lua` for the full list of 50+ commands)
+## ⌨️ Usage
+- **Prefix**: `:`
+- **Open Panel**: `;` (Only for Level 20+)
+- **Targeting**: `all`, `others`, `me`, or partial username.
 
 Created by Nexus Team.
