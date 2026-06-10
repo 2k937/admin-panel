@@ -23,7 +23,7 @@ function RankManager.SetPlayerRank(userId, level)
     if target then
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local rankData = RankManager.GetRankData(level)
-        ReplicatedStorage:WaitForChild("NexusAdmin_Notify"):FireClient(target, "Rank Updated", "You have been ranked to: " .. rankData.Name)
+        ReplicatedStorage:WaitForChild("NexusAdmin_Notify"):FireClient(target, "Nexus Admin", "You have been ranked to " .. rankData.Name)
     end
 end
 
