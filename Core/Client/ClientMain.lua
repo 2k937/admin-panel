@@ -33,3 +33,21 @@ ReplicatedStorage:WaitForChild("NexusAdmin_Notify").OnClientEvent:Connect(functi
     -- Logic to show a modern notification on the screen
     print("NOTIFICATION: [" .. title .. "] " .. text)
 end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_Message").OnClientEvent:Connect(function(title, text, sender)
+    -- Show global message UI
+    print("GLOBAL MESSAGE from " .. sender .. ": [" .. title .. "] " .. text)
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_PM").OnClientEvent:Connect(function(text, sender)
+    -- Show private message UI
+    print("PM from " .. sender .. ": " .. text)
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_Fly").OnClientEvent:Connect(function(enabled)
+    -- Toggle flight logic
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
+    -- Toggle noclip logic
+end)

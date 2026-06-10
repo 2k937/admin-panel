@@ -29,4 +29,12 @@ function UI.CreateDashboard()
     -- Logic for building the dashboard with stats
 end
 
+function UI.ShowMessage(title, text, sender)
+    -- Logic for showing a global message overlay
+end
+
+function UI.ShowPM(text, sender)
+    -- Logic for showing a private message box with a reply button
+end
+
 return UI

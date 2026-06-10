@@ -12,6 +12,22 @@ local ExecuteCommand = Instance.new("RemoteEvent")
 ExecuteCommand.Name = "NexusAdmin_ExecuteCommand"
 ExecuteCommand.Parent = ReplicatedStorage
 
+local MessageEvent = Instance.new("RemoteEvent")
+MessageEvent.Name = "NexusAdmin_Message"
+MessageEvent.Parent = ReplicatedStorage
+
+local PMEvent = Instance.new("RemoteEvent")
+PMEvent.Name = "NexusAdmin_PM"
+PMEvent.Parent = ReplicatedStorage
+
+local FlyEvent = Instance.new("RemoteEvent")
+FlyEvent.Name = "NexusAdmin_Fly"
+FlyEvent.Parent = ReplicatedStorage
+
+local NoClipEvent = Instance.new("RemoteEvent")
+NoClipEvent.Name = "NexusAdmin_NoClip"
+NoClipEvent.Parent = ReplicatedStorage
+
 GetPermission.OnServerInvoke = function(player)
     local level = RankManager.GetPlayerRank(player)
     return level >= 20 -- Minimum level to open panel (Helper)
