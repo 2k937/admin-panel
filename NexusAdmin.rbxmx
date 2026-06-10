@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX89248d34"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXd4385494"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX1e1225e1"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBXd6cf754b"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX4a49ce40"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXfa37dfeb"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX010446ee"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX9c4ef1b3"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Players = game:GetService("Players")
 
 function AntiExploit.Init()
@@ -17,7 +17,7 @@ function AntiExploit.Init()
 end
 
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXb78097dd"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXbaea83e6"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -126,7 +126,7 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXe172af9e"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0b082ae9"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -185,7 +185,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6dea091b"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6187fd3c"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -438,7 +438,63 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
 end, "Kills the specified player(s)")
 
 return true
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX19e54384"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+
+-- Warning System
+CommandManager.RegisterCommand("warn", 40, function(executor, args)
+    local WarningManager = require(script.Parent.WarningManager)
+    local targetName = args[1]
+    local reason = table.concat(args, " ", 2) or "No reason provided."
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :warn &lt;player&gt; [reason]")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local warningCount = WarningManager.WarnPlayer(target.UserId, reason, executor.DisplayName, executor.UserId)
+        WarningManager.NotifyPlayerWarned(target, executor.DisplayName, reason, warningCount)
+        notify(executor, "Nexus Admin", "Warned " .. target.Name .. " (Total: " .. warningCount .. " warnings)")
+    end
+end, "Warns a player")
+
+CommandManager.RegisterCommand("warnings", 40, function(executor, args)
+    local WarningManager = require(script.Parent.WarningManager)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :warnings &lt;player&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local warnings = WarningManager.GetPlayerWarnings(target.UserId)
+        local warningCount = #warnings
+
+        if warningCount == 0 then
+            notify(executor, "Nexus Admin", target.Name .. " has no warnings.")
+        else
+            local warningList = target.Name .. " has " .. warningCount .. " warning(s):\n"
+            for i, warning in ipairs(warnings) do
+                local timestamp = os.date("%Y-%m-%d %H:%M:%S", warning.Timestamp)
+                warningList = warningList .. "\n" .. i .. ". [" .. timestamp .. "] by " .. warning.ModeratorName .. ": " .. warning.Reason
+            end
+            notify(executor, "Nexus Admin", warningList)
+        end
+    end
+end, "Shows warnings for a player")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6dc55dbc"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -459,7 +515,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX3d959e4e"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8d790a68"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -485,7 +541,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBXeb83a972"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBXc5f92e4c"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -570,7 +626,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7ebdc2aa"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX864e3951"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -809,7 +865,83 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXf60cafec"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX386a095b"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9ee3b1c2"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+local DataStore = require(script.Parent.DataStore)
+local Players = game:GetService("Players")
+
+local WarningCache = {} -- [UserId] = { { Reason, ModeratorName, ModeratorId, Timestamp }, ... }
+
+function WarningManager.WarnPlayer(userId, reason, moderatorName, moderatorId)
+    if not WarningCache[userId] then
+        WarningCache[userId] = {}
+    end
+
+    local warning = {
+        Reason = reason or "No reason provided.",
+        ModeratorName = moderatorName or "Unknown",
+        ModeratorId = moderatorId or 0,
+        Timestamp = os.time()
+    }
+
+    table.insert(WarningCache[userId], warning)
+    DataStore.Save("Warnings_" .. userId, WarningCache[userId])
+
+    return #WarningCache[userId]
+end
+
+function WarningManager.GetPlayerWarnings(userId)
+    if not WarningCache[userId] then
+        return {}
+    end
+    return WarningCache[userId]
+end
+
+function WarningManager.GetWarningCount(userId)
+    if not WarningCache[userId] then
+        return 0
+    end
+    return #WarningCache[userId]
+end
+
+function WarningManager.ClearWarnings(userId)
+    WarningCache[userId] = nil
+    DataStore.Delete("Warnings_" .. userId)
+    return true
+end
+
+function WarningManager.RemoveWarning(userId, warningIndex)
+    if not WarningCache[userId] or warningIndex &lt; 1 or warningIndex &gt; #WarningCache[userId] then
+        return false
+    end
+
+    table.remove(WarningCache[userId], warningIndex)
+    if #WarningCache[userId] == 0 then
+        WarningCache[userId] = nil
+        DataStore.Delete("Warnings_" .. userId)
+    else
+        DataStore.Save("Warnings_" .. userId, WarningCache[userId])
+    end
+
+    return true
+end
+
+function WarningManager.LoadPlayerWarnings(userId)
+    -- Load warnings from DataStore (called on player join)
+    -- Placeholder for actual DataStore implementation
+end
+
+function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warningCount)
+    local Remote = game:GetService("ReplicatedStorage"):FindFirstChild("NexusAdmin_Warning")
+    if not Remote then
+        Remote = Instance.new("RemoteEvent")
+        Remote.Name = "NexusAdmin_Warning"
+        Remote.Parent = game:GetService("ReplicatedStorage")
+    end
+    Remote:FireClient(player, moderatorName, reason, warningCount)
+end
+
+return WarningManager
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXe6e7e1c7"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXc5f0f074"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -924,7 +1056,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX42646f1f"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX14dc2fac"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX7629cbc1"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXdf06feb8"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -1011,7 +1143,9 @@ end)
         unview = 40,
         kill = 20,
         rank = 80,
-        unrank = 80
+        unrank = 80,
+        warn = 40,
+        warnings = 40
     },
 
     -- Command Aliases
@@ -1026,7 +1160,7 @@ end)
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX990e8791"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX298ad1e6"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX788eb1ff"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXc6f73f0d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {
@@ -1061,6 +1195,15 @@ local UI = {
                 BannedPlayers = 0,
                 CommandsExecuted = 0
             }
+        },
+        WarningNotification = {
+            Title = "You Have Been Warned",
+            ModeratorName = "",
+            Reason = "",
+            WarningCount = 0,
+            BackgroundColor = Color3.fromRGB(255, 100, 100),
+            TextColor = Color3.fromRGB(255, 255, 255),
+            Duration = 5
         }
     }
 }
@@ -1091,6 +1234,20 @@ end
 
 function UI.ShowPM(text, sender)
     -- Logic for showing a private message box with a reply button
+end
+
+function UI.ShowWarning(moderatorName, reason, warningCount)
+    -- Modern clean warning notification UI
+    -- Displays: "You Have Been Warned by [Moderator]"
+    -- Shows reason and warning count
+    -- Auto-dismisses after 5 seconds
+    return {
+        Title = "You Have Been Warned",
+        ModeratorName = moderatorName,
+        Reason = reason,
+        WarningCount = warningCount,
+        Message = "You have been warned by " .. moderatorName .. " for: " .. reason .. "\nTotal Warnings: " .. warningCount
+    }
 end
 
 function UI.GetDashboardContent(player, permissionData)

@@ -33,6 +33,15 @@ local UI = {
                 BannedPlayers = 0,
                 CommandsExecuted = 0
             }
+        },
+        WarningNotification = {
+            Title = "You Have Been Warned",
+            ModeratorName = "",
+            Reason = "",
+            WarningCount = 0,
+            BackgroundColor = Color3.fromRGB(255, 100, 100),
+            TextColor = Color3.fromRGB(255, 255, 255),
+            Duration = 5
         }
     }
 }
@@ -63,6 +72,20 @@ end
 
 function UI.ShowPM(text, sender)
     -- Logic for showing a private message box with a reply button
+end
+
+function UI.ShowWarning(moderatorName, reason, warningCount)
+    -- Modern clean warning notification UI
+    -- Displays: "You Have Been Warned by [Moderator]"
+    -- Shows reason and warning count
+    -- Auto-dismisses after 5 seconds
+    return {
+        Title = "You Have Been Warned",
+        ModeratorName = moderatorName,
+        Reason = reason,
+        WarningCount = warningCount,
+        Message = "You have been warned by " .. moderatorName .. " for: " .. reason .. "\nTotal Warnings: " .. warningCount
+    }
 end
 
 function UI.GetDashboardContent(player, permissionData)

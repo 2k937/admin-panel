@@ -251,3 +251,59 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
 end, "Kills the specified player(s)")
 
 return true
+
+-- Warning System
+CommandManager.RegisterCommand("warn", 40, function(executor, args)
+    local WarningManager = require(script.Parent.WarningManager)
+    local targetName = args[1]
+    local reason = table.concat(args, " ", 2) or "No reason provided."
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :warn <player> [reason]")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local warningCount = WarningManager.WarnPlayer(target.UserId, reason, executor.DisplayName, executor.UserId)
+        WarningManager.NotifyPlayerWarned(target, executor.DisplayName, reason, warningCount)
+        notify(executor, "Nexus Admin", "Warned " .. target.Name .. " (Total: " .. warningCount .. " warnings)")
+    end
+end, "Warns a player")
+
+CommandManager.RegisterCommand("warnings", 40, function(executor, args)
+    local WarningManager = require(script.Parent.WarningManager)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :warnings <player>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local warnings = WarningManager.GetPlayerWarnings(target.UserId)
+        local warningCount = #warnings
+
+        if warningCount == 0 then
+            notify(executor, "Nexus Admin", target.Name .. " has no warnings.")
+        else
+            local warningList = target.Name .. " has " .. warningCount .. " warning(s):\n"
+            for i, warning in ipairs(warnings) do
+                local timestamp = os.date("%Y-%m-%d %H:%M:%S", warning.Timestamp)
+                warningList = warningList .. "\n" .. i .. ". [" .. timestamp .. "] by " .. warning.ModeratorName .. ": " .. warning.Reason
+            end
+            notify(executor, "Nexus Admin", warningList)
+        end
+    end
+end, "Shows warnings for a player")
