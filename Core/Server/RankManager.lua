@@ -17,6 +17,14 @@ function RankManager.SetPlayerRank(userId, level)
     PlayerRanks[userId] = level
     local DataStore = require(script.Parent.DataStore)
     DataStore.Save("Rank_" .. userId, level)
+    
+    local Players = game:GetService("Players")
+    local target = Players:GetPlayerByUserId(userId)
+    if target then
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local rankData = RankManager.GetRankData(level)
+        ReplicatedStorage:WaitForChild("NexusAdmin_Notify"):FireClient(target, "Rank Updated", "You have been ranked to: " .. rankData.Name)
+    end
 end
 
 function RankManager.LoadPlayerRank(player)
