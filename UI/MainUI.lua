@@ -29,6 +29,11 @@ function UI.CreateDashboard()
     -- Logic for building the dashboard with stats
 end
 
+function UI.CreateAdminButton()
+    -- Logic for a sleek, modern floating button (e.g., at the bottom right)
+    -- This button allows mobile users to easily open the panel
+end
+
 function UI.ShowMessage(title, text, sender)
     -- Logic for showing a global message overlay
 end

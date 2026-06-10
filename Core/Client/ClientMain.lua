@@ -16,6 +16,19 @@ local function togglePanel()
         -- Toggle Admin Panel Visibility
         -- (Actual UI visibility logic here)
     end
+end
+
+-- Initialize Admin Button for Mobile/PC accessibility
+task.spawn(function()
+    local success, canOpen = pcall(function()
+        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 5):InvokeServer()
+    end)
+    
+    if success and canOpen then
+        local MainUI = require(script.Parent.Parent.UI.MainUI)
+        MainUI.CreateAdminButton() -- Create the floating toggle button
+    end
+end)
     -- If not canOpen, do absolutely nothing (no notifications, no prints)
 end
 
