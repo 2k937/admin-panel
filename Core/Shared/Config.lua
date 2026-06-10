@@ -58,7 +58,8 @@ local Config = {
         message = 60,
         pm = 40,
         view = 40,
-        unview = 40
+        unview = 40,
+        kill = 20
     },
     
     -- Command Aliases

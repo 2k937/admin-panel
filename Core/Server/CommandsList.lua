@@ -122,3 +122,13 @@ end, "Explodes player")
 
 -- Add all other commands similarly...
 return true
+
+-- Kill Command
+CommandManager.RegisterCommand("kill", 20, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        if target.Character and target.Character:FindFirstChild("Humanoid") then
+            target.Character.Humanoid.Health = 0
+        end
+    end
+end, "Kills the specified player(s)")
