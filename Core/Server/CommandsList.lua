@@ -37,13 +37,48 @@ CommandManager.RegisterCommand("kick", 40, function(executor, args)
 end, "Kicks the specified player(s)")
 
 CommandManager.RegisterCommand("ban", 60, function(executor, args)
-    local targets = getPlayers(args[1], executor)
-    local reason = table.concat(args, " ", 2) or "Banned by an admin."
-    for _, target in pairs(targets) do
-        target:Kick("Banned: " .. reason)
-        -- Save to Ban DataStore
+    local BanManager = require(script.Parent.BanManager)
+    local targetName = args[1]
+    local durationStr = args[2]
+    local reason = table.concat(args, " ", 3) or "Banned by an admin."
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :ban <player> [duration|permanent] [reason]")
+        return
     end
-end, "Bans the specified player(s)")
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    local duration = nil
+    if durationStr then
+        if durationStr:lower() == "permanent" or durationStr:lower() == "perm" then
+            duration = 0
+        else
+            local timeValue = tonumber(durationStr:match("^(%d+)"))
+            if timeValue then
+                local timeUnit = durationStr:match("([smhd])$") or "m"
+                if timeUnit == "s" then
+                    duration = timeValue
+                elseif timeUnit == "m" then
+                    duration = timeValue * 60
+                elseif timeUnit == "h" then
+                    duration = timeValue * 3600
+                elseif timeUnit == "d" then
+                    duration = timeValue * 86400
+                end
+            end
+        end
+    end
+
+    for _, target in pairs(targets) do
+        BanManager.BanPlayer(target.UserId, reason, duration)
+        notify(executor, "Nexus Admin", "Banned " .. target.Name)
+    end
+end, "Bans the specified player(s) - Usage: :ban <player> [duration|permanent] [reason]")
 
 -- Moderation
 CommandManager.RegisterCommand("mute", 40, function(executor, args)

@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
+local BanManager = require(script.Parent.BanManager)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -61,6 +62,11 @@ ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
 end)
 
 Players.PlayerAdded:Connect(function(player)
+    -- Check if player is banned
+    if BanManager.CheckPlayerOnJoin(player) then
+        return
+    end
+
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)
     end)
