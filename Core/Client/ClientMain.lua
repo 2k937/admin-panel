@@ -8,13 +8,15 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 -- UI Keybind (default ';')
 local function togglePanel()
     -- Request permission level from server
-    local canOpen = ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission"):InvokeServer()
-    if canOpen then
+    local success, canOpen = pcall(function()
+        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 1):InvokeServer()
+    end)
+    
+    if success and canOpen then
         -- Toggle Admin Panel Visibility
-        print("Opening Admin Panel")
-    else
-        print("You do not have permission to open the Admin Panel")
+        -- (Actual UI visibility logic here)
     end
+    -- If not canOpen, do absolutely nothing (no notifications, no prints)
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -27,3 +29,7 @@ end)
 -- Command Suggestions logic
 -- Flight logic
 -- Notifications logic
+ReplicatedStorage:WaitForChild("NexusAdmin_Notify").OnClientEvent:Connect(function(title, text)
+    -- Logic to show a modern notification on the screen
+    print("NOTIFICATION: [" .. title .. "] " .. text)
+end)

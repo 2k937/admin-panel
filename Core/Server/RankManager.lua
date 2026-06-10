@@ -9,7 +9,7 @@ function RankManager.Init()
 end
 
 function RankManager.GetPlayerRank(player)
-    if player.UserId == game.CreatorId then return 100 end
+    if player.UserId == game.CreatorId then return 255 end -- Highest possible internal level
     return PlayerRanks[player.UserId] or 0
 end
 

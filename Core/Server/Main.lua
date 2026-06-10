@@ -30,6 +30,16 @@ ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
     end
 end)
 
+local function notifyPlayer(player, title, text)
+    local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
+    if not Remote then
+        Remote = Instance.new("RemoteEvent")
+        Remote.Name = "NexusAdmin_Notify"
+        Remote.Parent = ReplicatedStorage
+    end
+    Remote:FireClient(player, title, text)
+end
+
 Players.PlayerAdded:Connect(function(player)
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)
@@ -37,7 +47,13 @@ Players.PlayerAdded:Connect(function(player)
     
     -- Load rank
     local level = RankManager.GetPlayerRank(player)
-    print(player.Name .. " joined with rank level: " .. level)
+    local rankData = RankManager.GetRankData(level)
+    
+    if level >= 20 then
+        -- Welcome notification for admins
+        task.wait(2) -- Wait for client to load
+        notifyPlayer(player, "Welcome, " .. player.DisplayName, "Rank: " .. rankData.Name .. " (Level " .. level .. ")")
+    end
 end)
 
 print("Nexus Admin Initialized Successfully")
