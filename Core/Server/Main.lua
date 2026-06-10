@@ -46,7 +46,8 @@ Players.PlayerAdded:Connect(function(player)
     end)
     
     -- Load rank
-    local level = RankManager.GetPlayerRank(player)
+    local level = RankManager.LoadPlayerRank(player)
+    if player.UserId == game.CreatorId then level = 255 end
     local rankData = RankManager.GetRankData(level)
     
     if level >= 20 then

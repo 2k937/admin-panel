@@ -15,7 +15,18 @@ end
 
 function RankManager.SetPlayerRank(userId, level)
     PlayerRanks[userId] = level
-    -- Save to DataStore
+    local DataStore = require(script.Parent.DataStore)
+    DataStore.Save("Rank_" .. userId, level)
+end
+
+function RankManager.LoadPlayerRank(player)
+    local DataStore = require(script.Parent.DataStore)
+    local savedLevel, success = DataStore.Get("Rank_" .. player.UserId)
+    if success and savedLevel then
+        PlayerRanks[player.UserId] = savedLevel
+        return savedLevel
+    end
+    return 0
 end
 
 function RankManager.CreateCustomRank(name, level, color, icon)

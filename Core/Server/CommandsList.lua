@@ -228,3 +228,51 @@ CommandManager.RegisterCommand("explode", 60, function(executor, args)
         end
     end
 end, "Explodes player")
+
+-- Rank Command
+CommandManager.RegisterCommand("rank", 80, function(executor, args)
+    local targetName = args[1]
+    local newLevel = tonumber(args[2])
+    
+    if not targetName or not newLevel then return end
+    
+    local RankManager = require(script.Parent.RankManager)
+    local executorLevel = RankManager.GetPlayerRank(executor)
+    
+    -- Hierarchy Check: Cannot rank someone to a level higher than or equal to yourself
+    if newLevel >= executorLevel then
+        -- Notify: Cannot set rank higher than or equal to your own
+        return
+    end
+    
+    local targets = getPlayers(targetName, executor)
+    for _, target in pairs(targets) do
+        local targetCurrentLevel = RankManager.GetPlayerRank(target)
+        
+        -- Hierarchy Check: Cannot rank someone who is already higher than or equal to you
+        if targetCurrentLevel < executorLevel then
+            RankManager.SetPlayerRank(target.UserId, newLevel)
+            -- Notify target and executor
+        end
+    end
+end, "Ranks a player permanently")
+
+-- Unrank Command
+CommandManager.RegisterCommand("unrank", 80, function(executor, args)
+    local targetName = args[1]
+    if not targetName then return end
+    
+    local RankManager = require(script.Parent.RankManager)
+    local executorLevel = RankManager.GetPlayerRank(executor)
+    
+    local targets = getPlayers(targetName, executor)
+    for _, target in pairs(targets) do
+        local targetCurrentLevel = RankManager.GetPlayerRank(target)
+        
+        -- Hierarchy Check: Cannot unrank someone who is higher than or equal to you
+        if targetCurrentLevel < executorLevel then
+            RankManager.SetPlayerRank(target.UserId, 0)
+            -- Notify target and executor
+        end
+    end
+end, "Removes a player's rank permanently")
