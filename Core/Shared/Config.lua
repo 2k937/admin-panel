@@ -83,7 +83,9 @@ local Config = {
         pm = 40,
         view = 40,
         unview = 40,
-        kill = 20
+        kill = 20,
+        rank = 80,
+        unrank = 80
     },
 
     -- Command Aliases

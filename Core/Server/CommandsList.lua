@@ -13,7 +13,7 @@ local function getPlayers(str, executor)
         return others
     end
     if str == "me" then return {executor} end
-    
+
     for _, p in pairs(Players:GetPlayers()) do
         if p.Name:lower():sub(1, #str) == str:lower() or p.DisplayName:lower():sub(1, #str) == str:lower() then
             return {p}
@@ -120,8 +120,90 @@ CommandManager.RegisterCommand("explode", 60, function(executor, args)
     end
 end, "Explodes player")
 
--- Add all other commands similarly...
-return true
+-- Rank Management
+CommandManager.RegisterCommand("rank", 80, function(executor, args)
+    local RankManager = require(script.Parent.RankManager)
+    local targetName = args[1]
+    local rankLevel = tonumber(args[2])
+
+    if not targetName or not rankLevel then
+        notify(executor, "Nexus Admin", "Usage: :rank <player> <level>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local executorLevel = RankManager.GetPlayerRank(executor)
+        local targetLevel = RankManager.GetPlayerRank(target)
+
+        if executorLevel <= targetLevel then
+            notify(executor, "Nexus Admin", "You cannot rank a player equal to or higher than your rank.")
+            return
+        end
+
+        if rankLevel >= executorLevel then
+            notify(executor, "Nexus Admin", "You cannot rank a player to your level or higher.")
+            return
+        end
+
+        if RankManager.IsProtectedPlayer(target) then
+            notify(executor, "Nexus Admin", "You cannot rank the Place Owner.")
+            return
+        end
+
+        local success, err = RankManager.SetPlayerRank(target.UserId, rankLevel)
+        if success then
+            notify(executor, "Nexus Admin", "Ranked " .. target.Name .. " to level " .. rankLevel)
+            notify(target, "Nexus Admin", "You have been ranked to level " .. rankLevel)
+        else
+            notify(executor, "Nexus Admin", "Error: " .. (err or "Unknown error"))
+        end
+    end
+end, "Ranks a player to a specified level")
+
+CommandManager.RegisterCommand("unrank", 80, function(executor, args)
+    local RankManager = require(script.Parent.RankManager)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :unrank <player>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local executorLevel = RankManager.GetPlayerRank(executor)
+        local targetLevel = RankManager.GetPlayerRank(target)
+
+        if executorLevel <= targetLevel then
+            notify(executor, "Nexus Admin", "You cannot unrank a player equal to or higher than your rank.")
+            return
+        end
+
+        if RankManager.IsProtectedPlayer(target) then
+            notify(executor, "Nexus Admin", "You cannot unrank the Place Owner.")
+            return
+        end
+
+        local success, err = RankManager.SetPlayerRank(target.UserId, 0)
+        if success then
+            notify(executor, "Nexus Admin", "Unranked " .. target.Name)
+            notify(target, "Nexus Admin", "You have been unranked.")
+        else
+            notify(executor, "Nexus Admin", "Error: " .. (err or "Unknown error"))
+        end
+    end
+end, "Removes rank from a player")
 
 -- Kill Command
 CommandManager.RegisterCommand("kill", 20, function(executor, args)
@@ -132,3 +214,5 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
         end
     end
 end, "Kills the specified player(s)")
+
+return true

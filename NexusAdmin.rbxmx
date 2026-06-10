@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX6797cfe0"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXa86f173f"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX12f62c95"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX9433328e"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX501c3860"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXf2febabc"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXfff67fcd"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX290e0e0a"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Players = game:GetService("Players")
 
 function AntiExploit.Init()
@@ -17,7 +17,7 @@ function AntiExploit.Init()
 end
 
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXb9c1852d"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX76dae6ec"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -76,7 +76,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX3dd6110f"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX97f4487c"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -198,8 +198,90 @@ CommandManager.RegisterCommand("explode", 60, function(executor, args)
     end
 end, "Explodes player")
 
--- Add all other commands similarly...
-return true
+-- Rank Management
+CommandManager.RegisterCommand("rank", 80, function(executor, args)
+    local RankManager = require(script.Parent.RankManager)
+    local targetName = args[1]
+    local rankLevel = tonumber(args[2])
+
+    if not targetName or not rankLevel then
+        notify(executor, "Nexus Admin", "Usage: :rank &lt;player&gt; &lt;level&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local executorLevel = RankManager.GetPlayerRank(executor)
+        local targetLevel = RankManager.GetPlayerRank(target)
+
+        if executorLevel &lt;= targetLevel then
+            notify(executor, "Nexus Admin", "You cannot rank a player equal to or higher than your rank.")
+            return
+        end
+
+        if rankLevel &gt;= executorLevel then
+            notify(executor, "Nexus Admin", "You cannot rank a player to your level or higher.")
+            return
+        end
+
+        if RankManager.IsProtectedPlayer(target) then
+            notify(executor, "Nexus Admin", "You cannot rank the Place Owner.")
+            return
+        end
+
+        local success, err = RankManager.SetPlayerRank(target.UserId, rankLevel)
+        if success then
+            notify(executor, "Nexus Admin", "Ranked " .. target.Name .. " to level " .. rankLevel)
+            notify(target, "Nexus Admin", "You have been ranked to level " .. rankLevel)
+        else
+            notify(executor, "Nexus Admin", "Error: " .. (err or "Unknown error"))
+        end
+    end
+end, "Ranks a player to a specified level")
+
+CommandManager.RegisterCommand("unrank", 80, function(executor, args)
+    local RankManager = require(script.Parent.RankManager)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :unrank &lt;player&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local executorLevel = RankManager.GetPlayerRank(executor)
+        local targetLevel = RankManager.GetPlayerRank(target)
+
+        if executorLevel &lt;= targetLevel then
+            notify(executor, "Nexus Admin", "You cannot unrank a player equal to or higher than your rank.")
+            return
+        end
+
+        if RankManager.IsProtectedPlayer(target) then
+            notify(executor, "Nexus Admin", "You cannot unrank the Place Owner.")
+            return
+        end
+
+        local success, err = RankManager.SetPlayerRank(target.UserId, 0)
+        if success then
+            notify(executor, "Nexus Admin", "Unranked " .. target.Name)
+            notify(target, "Nexus Admin", "You have been unranked.")
+        else
+            notify(executor, "Nexus Admin", "Error: " .. (err or "Unknown error"))
+        end
+    end
+end, "Removes rank from a player")
 
 -- Kill Command
 CommandManager.RegisterCommand("kill", 20, function(executor, args)
@@ -210,7 +292,9 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
         end
     end
 end, "Kills the specified player(s)")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8c943080"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+
+return true
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2c2c2641"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -231,7 +315,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX4218306d"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX87c0f418"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -257,7 +341,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBXfb9c14ac"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX67a831db"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -336,7 +420,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8d6edcb6"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0f30e6ff"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -575,7 +659,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX5c224d80"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX3dc96f70"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXca5365ba"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXa4e126f4"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -690,7 +774,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX9fa2df2e"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXe15449ea"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX454ab016"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXe2b2063e"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -775,7 +859,9 @@ end)
         pm = 40,
         view = 40,
         unview = 40,
-        kill = 20
+        kill = 20,
+        rank = 80,
+        unrank = 80
     },
 
     -- Command Aliases
@@ -790,7 +876,7 @@ end)
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX24f3d2de"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXf5aa7698"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXdf6cbc48"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX3a78c68e"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {
