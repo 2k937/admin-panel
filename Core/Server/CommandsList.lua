@@ -397,7 +397,7 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
     end
 end, "Teleports you to a player")
 
-CommandManager.RegisterCommand("bans", 40, function(executor, args)
+CommandManager.RegisterCommand("bans", 60, function(executor, args)
     local BanManager = require(script.Parent.BanManager)
     local activeBans = BanManager.GetActiveBans()
 
@@ -409,8 +409,6 @@ CommandManager.RegisterCommand("bans", 40, function(executor, args)
     local banList = "Active Bans (" .. #activeBans .. "):\n"
     for i, ban in ipairs(activeBans) do
         local timestamp = os.date("%Y-%m-%d %H:%M:%S", ban.BannedAt)
-        local status = ban.Status or "Unknown"
-
         if ban.Permanent then
             banList = banList .. "\n" .. i .. ". [PERMANENT] UserID: " .. ban.UserId .. " - Reason: " .. ban.Reason .. " (Banned: " .. timestamp .. ")"
         else

@@ -45,14 +45,12 @@ local GetCommandInfo = Instance.new("RemoteFunction")
 GetCommandInfo.Name = "NexusAdmin_GetCommandInfo"
 GetCommandInfo.Parent = ReplicatedStorage
 
-local function notifyPlayer(player, title, text)
-    local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
-    if not Remote then
-        Remote = Instance.new("RemoteEvent")
-        Remote.Name = "NexusAdmin_Notify"
-        Remote.Parent = ReplicatedStorage
-    end
-    Remote:FireClient(player, title, text)
+local NotifyEvent = Instance.new("RemoteEvent")
+NotifyEvent.Name = "NexusAdmin_Notify"
+NotifyEvent.Parent = ReplicatedStorage
+
+local function notifyPlayer(player, title, text, type)
+    NotifyEvent:FireClient(player, title, text, type or "info")
 end
 
 GetPermission.OnServerInvoke = function(player)
