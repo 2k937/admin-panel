@@ -1,65 +1,75 @@
 # Nexus Admin
 
-Nexus Admin is a modern and customizable Roblox admin system with server-side permission checks, protected owner access, and optional group-rank panel access.
+Nexus Admin is a modern, high-performance, and feature-rich Roblox admin system. It features a sleek dark-themed interface, advanced security, persistent data storage, and a powerful command system.
 
-## Features
+## ✨ Key Features
 
-Nexus Admin includes a dark-themed admin interface scaffold, permanent rank storage through DataStores, command permission checks, welcome notifications for authorized users, and silent rejection for guests who do not have panel access. The latest access system adds an automatic **Place Owner** role and configurable **group-rank access** for group-managed games.
+- **Modern UI Redesign**: Completely redesigned interface with smooth animations and a clean aesthetic.
+- **Advanced Anti-Exploit**: Smart detection for Speed, Fly, NoClip, God Mode, and Teleport hacks.
+- **Anti-Backdoor Protection**: Automatic permanent bans for players attempting to use backdoors or unauthorized script injections.
+- **Persistent Ban System**: Support for both **Timed Bans** (e.g., 10m, 2h, 1d) and **Permanent Bans**, all saved to DataStores.
+- **Custom Tags System**: Overhead player tags with customizable names, colors, and icons (Level 80+).
+- **Command Search Tab**: A dedicated tab to search and learn about every command, including descriptions and usage guides.
+- **Smart Hierarchy**: Higher ranks automatically have access to all commands from lower ranks.
+- **Group-Rank Integration**: Easy-to-configure group-based permissions.
+- **Place Owner Protection**: Automatic, un-editable top-level access for the game or group owner.
 
-## Installation
+## 🚀 Installation
 
 1. Download the latest `NexusAdmin.rbxmx` from the [Releases](https://github.com/2k937/admin-panel/releases) page.
 2. Drag and drop the file into **Roblox Studio**.
 3. Move the `NexusAdmin` folder to `ServerScriptService`.
-4. Publish your game and enable **API Services** if you are using DataStores.
+4. Publish your game and enable **API Services** (Game Settings > Security > Allow HTTP Requests & Enable Studio Access to API Services).
 
-## Default Ranks
+## 📊 Default Ranks
 
 | Rank Name | Level | Description |
 |---|---:|---|
-| Place Owner | 255 | Automatic protected owner role for the user who owns the place or the owner of the group that owns the place. This role cannot be manually edited or replaced. |
-| Creator | 100 | High-level creator access for manually configured staff. |
-| Head Admin | 80 | Senior administrator access. |
+| Place Owner | 255 | Automatic protected owner role for the game/group owner. |
+| Creator | 100 | Full creator access for staff. |
+| Head Admin | 80 | Senior administrator access (can manage tags and ranks). |
 | Admin | 60 | Standard moderation access. |
 | Moderator | 40 | Basic moderation access. |
-| Helper | 20 | Minimum default panel access. |
-| Player | 0 | No admin panel access. |
+| Helper | 20 | Minimum access to open the admin panel. |
+| Player | 0 | Standard player with no access. |
 
-## Place Owner Access
+## ⚙️ Configuration
 
-The **Place Owner** role is detected automatically by `RankManager.lua`. If the place is owned by an individual user, the player whose `UserId` matches `game.CreatorId` receives level `255`. If the place is owned by a Roblox group, the system attempts to resolve the group owner through `GroupService:GetGroupInfoAsync(game.CreatorId)` and grants that owner level `255`.
-
-This role is protected. Calls to `SetPlayerRank` will not overwrite the Place Owner, and `CreateCustomRank` will not replace the protected Place Owner rank level.
-
-## Group-Rank Panel Access
-
-Group-rank access is configured in `Core/Shared/Config.lua`. It is disabled by default so existing games keep their current behavior until the owner enables it.
+### Group-Rank Access
+Configured in `Core/Shared/Config.lua`. You can set a custom level higher than 255 to bypass Place Owner restrictions if desired.
 
 ```lua
-Access = {
-    MinimumPanelLevel = 20,
-
-    GroupRanks = {
-        Enabled = true,
-        Groups = {
-            { GroupId = 123456, MinimumRank = 200, Level = 60, Name = "Group Admin" },
-            { GroupId = 123456, MinimumRank = 100, Level = 20, Name = "Group Helper" }
-        }
+GroupRanks = {
+    Enabled = true,
+    Groups = {
+        { GroupId = 1234567, RoleNumber = 255, Level = 100, Name = "Group Owner" },
+        { GroupId = 1234567, RoleNumber = 200, Level = 80, Name = "Group Admin" }
     }
 }
 ```
 
-| Field | Meaning |
-|---|---|
-| `GroupId` | Roblox group ID to check. |
-| `MinimumRank` | Minimum Roblox group rank number required for access. |
-| `Level` | Nexus Admin permission level granted when the rule matches. |
-| `Name` | Display name returned to the client for welcome and UI metadata. |
+### Anti-Exploit
+Fully configurable detection settings in `Config.lua`. You can choose whether to Log, Warn, Kick, or Ban detected exploiters.
 
-If a player has both a saved manual rank and a matching group-rank rule, the system uses the higher effective level. The server still validates every command, so client-side UI changes cannot grant extra permissions.
+## 🛠 Commands
 
-## Usage
+| Command | Usage | Level |
+|---|---|---:|
+| `:ban` | `:ban <player> <duration> <reason>` | 60 |
+| `:warn` | `:warn <player> <reason>` | 40 |
+| `:tag` | `:tag <player> <name> [color] [icon]` | 80 |
+| `:rank` | `:rank <player> <level>` | 80 |
+| `:viewinfo` | `:viewinfo <player>` | 40 |
+| `:bring` | `:bring <player/all>` | 60 |
+| `:goto` | `:goto <player>` | 60 |
+| `:bans` | `:bans` | 40 |
+| `:warnings` | `:warnings <player>` | 40 |
 
-The default command prefix is `:`. The default panel keybind is `;`, and only users who resolve to level `20` or higher can open the panel. Guests who do not meet the minimum access requirement are silently rejected.
+*Use the **Search Tab** in the admin panel for a full list of commands and usage guides.*
 
+## 🔒 Security
+
+Nexus Admin uses server-side validation for every action. Client-side UI changes or remote event spoofing cannot bypass permission levels. All sensitive data (Bans, Ranks, Tags) is stored securely using Roblox DataStores.
+
+---
 Created by Nexus Team.
