@@ -142,6 +142,13 @@ local Config = {
             MaxWarnings = 3,
             ResetTime = 300
         }
+    },
+
+    -- Player Tag Settings
+    Tags = {
+        Enabled = true,
+        MaxTagLength = 20,
+        DefaultColor = Color3.fromRGB(0, 170, 255)
     }
 }
 
