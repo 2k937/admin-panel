@@ -68,8 +68,9 @@ ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
     if permission.CanOpen then
         -- Add prefix if missing to use the same logic as chat commands.
         local finalCmd = commandString
-        if commandString:sub(1, 1) ~= Config.Prefix then
-            finalCmd = Config.Prefix .. commandString
+        local prefix = Config.Prefix or ":"
+        if commandString:sub(1, 1) ~= prefix then
+            finalCmd = prefix .. commandString
         end
         CommandManager.Execute(player, finalCmd)
     end
@@ -113,7 +114,8 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
     local permission = RankManager.GetPermissionData(player)
     if permission.CanOpen then
         -- Build the command with target
-        local finalCmd = Config.Prefix .. command .. " " .. targetName
+        local prefix = Config.Prefix or ":"
+        local finalCmd = prefix .. command .. " " .. targetName
         CommandManager.Execute(player, finalCmd)
     end
 end)

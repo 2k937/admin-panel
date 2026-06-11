@@ -546,4 +546,61 @@ function UI.CreateAdminButton(permissionData)
     }
 end
 
+-- Modern Logs Tab UI
+function UI.CreateLogsTab()
+    return {
+        Type = "Logs",
+        Title = "Audit Logs",
+        Subtitle = "Review server actions and command usage",
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Log Categories
+        Categories = {
+            {
+                Name = "Command Logs",
+                Icon = "⚡",
+                Action = "get_command_logs"
+            },
+            {
+                Name = "Punishment Logs",
+                Icon = "🚫",
+                Action = "get_punishment_logs"
+            },
+            {
+                Name = "Join Logs",
+                Icon = "👥",
+                Action = "get_join_logs"
+            }
+        }
+    }
+end
+
+-- Modern Log Entry Component
+function UI.CreateLogEntry(timestamp, user, action, details)
+    return {
+        Type = "LogEntry",
+        Timestamp = timestamp,
+        User = user,
+        Action = action,
+        Details = details,
+        
+        -- Modern styling
+        BackgroundColor = Colors.Secondary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 8,
+        Padding = 10,
+        
+        -- Content
+        TimeStr = os.date("%H:%M:%S", timestamp),
+        HeaderText = user .. " executed " .. action,
+        BodyText = details
+    }
+end
+
 return UI

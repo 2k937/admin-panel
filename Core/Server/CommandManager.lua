@@ -14,7 +14,8 @@ function CommandManager.RegisterCommand(name, level, callback, description)
 end
 
 function CommandManager.Execute(player, message)
-    if typeof(message) ~= "string" or #message < 2 or message:sub(1, 1) ~= Config.Prefix then
+    local prefix = Config.Prefix or ":"
+    if typeof(message) ~= "string" or #message < 2 or message:sub(1, 1) ~= prefix then
         return
     end
 

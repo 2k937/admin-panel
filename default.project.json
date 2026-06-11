@@ -1,0 +1,15 @@
+{
+  "name": "NexusAdmin",
+  "tree": {
+    "$className": "Folder",
+    "NexusAdmin": {
+      "$className": "Folder",
+      "Core": {
+        "$path": "Core"
+      },
+      "UI": {
+        "$path": "UI"
+      }
+    }
+  }
+}

@@ -17,6 +17,11 @@ function LogManager.AddLog(type, data)
     if #Logs[type] > 100 then
         table.remove(Logs[type], 1)
     end
+
+    -- Periodically save logs to DataStore (simplified)
+    task.spawn(function()
+        DataStore.Save("Logs_" .. type, Logs[type])
+    end)
 end
 
 function LogManager.GetLogs(type)

@@ -149,7 +149,10 @@ local Config = {
         Enabled = true,
         MaxTagLength = 20,
         DefaultColor = Color3.fromRGB(0, 170, 255)
-    }
+    },
+
+    -- Core Settings
+    Prefix = ":"
 }
 
 return Config
