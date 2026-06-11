@@ -289,8 +289,6 @@ function UI.CreateModernTab(name, icon, content)
     }
 end
 
-return UI
-
 -- Modern Tag Management UI
 function UI.CreateTagManagementPanel()
     return {
@@ -525,3 +523,27 @@ function UI.CreateCommandDetailView(commandName, level, description, usage, exam
         }
     }
 end
+
+-- Floating Admin Button (toggle for mobile/PC accessibility)
+function UI.CreateAdminButton(permissionData)
+    return {
+        Type = "AdminButton",
+        Label = "Admin",
+        Icon = "🛡️",
+        Level = permissionData and permissionData.Level or 0,
+        RankName = permissionData and permissionData.RankName or "Player",
+
+        -- Modern styling
+        BackgroundColor = Colors.Accent,
+        TextColor = Colors.Text,
+        CornerRadius = 8,
+        Size = UDim2.new(0, 80, 0, 36),
+        Position = UDim2.new(1, -90, 1, -50),
+        AnchorPoint = Vector2.new(1, 1),
+
+        -- Action
+        Action = "TogglePanel"
+    }
+end
+
+return UI

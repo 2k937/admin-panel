@@ -397,8 +397,6 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
     end
 end, "Teleports you to a player")
 
-return true
-
 CommandManager.RegisterCommand("bans", 40, function(executor, args)
     local BanManager = require(script.Parent.BanManager)
     local activeBans = BanManager.GetActiveBans()
@@ -492,3 +490,5 @@ CommandManager.RegisterCommand("untag", 80, function(executor, args)
         notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
     end
 end, "Remove a custom tag from a player (Level 80+ only)")
+
+return true

@@ -18,4 +18,11 @@ function DataStore.Get(key)
     return data, success, err
 end
 
+function DataStore.Delete(key)
+    local success, err = pcall(function()
+        NexusStore:RemoveAsync(key)
+    end)
+    return success, err
+end
+
 return DataStore

@@ -106,8 +106,6 @@ function BanManager.CheckPlayerOnJoin(player)
     return false
 end
 
-return BanManager
-
 function BanManager.GetAllBans()
     -- Returns all active and inactive bans
     local allBans = {}
@@ -173,3 +171,5 @@ function BanManager.GetBansByPlayer(userId)
     end
     return nil
 end
+
+return BanManager
