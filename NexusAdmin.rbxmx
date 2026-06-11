@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXe7e359a3"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXed375b50"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXc6dc586c"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX894a4c52"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX513d7dac"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX807f93a2"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXf4c2fe06"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX3f413c95"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Players = game:GetService("Players")
 
 function AntiExploit.Init()
@@ -17,7 +17,7 @@ function AntiExploit.Init()
 end
 
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXc0983fae"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX01eb6979"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -126,7 +126,7 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX93432bf2"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5d0561bd"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -185,7 +185,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8d6a0453"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX3cd646ca"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -585,7 +585,7 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
 end, "Teleports you to a player")
 
 return true
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7e9157c7"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX304cf21c"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -606,7 +606,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6a1af094"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX343928ea"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -632,7 +632,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBX89d00805"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX80364ce2"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -664,6 +664,10 @@ FlyEvent.Parent = ReplicatedStorage
 local NoClipEvent = Instance.new("RemoteEvent")
 NoClipEvent.Name = "NexusAdmin_NoClip"
 NoClipEvent.Parent = ReplicatedStorage
+
+local ExecuteTabRemote = Instance.new("RemoteEvent")
+ExecuteTabRemote.Name = "NexusAdmin_Execute"
+ExecuteTabRemote.Parent = ReplicatedStorage
 
 local function notifyPlayer(player, title, text)
     local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
@@ -717,7 +721,20 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX67646e04"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+
+ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
+    if typeof(targetName) ~= "string" or typeof(command) ~= "string" then
+        return
+    end
+
+    local permission = RankManager.GetPermissionData(player)
+    if permission.CanOpen then
+        -- Build the command with target
+        local finalCmd = Config.Prefix .. command .. " " .. targetName
+        CommandManager.Execute(player, finalCmd)
+    end
+end)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfff2ae63"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -956,7 +973,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX89c23f07"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11f9757d"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1032,7 +1049,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX3e11165a"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX73542ec2"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXcff66146"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXe052676f"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1147,7 +1164,93 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXd065bd12"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX3d80bca4"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBXc42d555d"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+local ExecuteTab = {}
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+
+local selectedPlayer = nil
+local selectedCommand = ""
+
+function ExecuteTab.CreatePlayerCard(player, rankInfo)
+    -- Creates a visual card for a player with avatar, username, and rank
+    return {
+        PlayerId = player.UserId,
+        PlayerName = player.Name,
+        DisplayName = player.DisplayName,
+        Avatar = "https://www.roblox.com/bust-thumbnails/image?userId=" .. player.UserId .. "&amp;width=420&amp;height=420&amp;format=png",
+        Rank = rankInfo.RankName or "Player",
+        Level = rankInfo.Level or 0,
+        OnClick = function()
+            ExecuteTab.SelectPlayer(player, rankInfo)
+        end
+    }
+end
+
+function ExecuteTab.SelectPlayer(player, rankInfo)
+    -- Updates the selected player and displays their info
+    selectedPlayer = player
+    return {
+        Username = player.Name,
+        DisplayName = player.DisplayName,
+        UserId = player.UserId,
+        Rank = rankInfo.RankName or "Player",
+        Level = rankInfo.Level or 0,
+        Avatar = "https://www.roblox.com/bust-thumbnails/image?userId=" .. player.UserId .. "&amp;width=420&amp;height=420&amp;format=png"
+    }
+end
+
+function ExecuteTab.GetPlayerList()
+    -- Returns all online players with their rank info
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player then
+            table.insert(playerList, {
+                Player = player,
+                Card = ExecuteTab.CreatePlayerCard(player, { RankName = "Player", Level = 0 })
+            })
+        end
+    end
+    return playerList
+end
+
+function ExecuteTab.ExecuteCommand(command)
+    -- Sends the command to the server for execution on the selected player
+    if not selectedPlayer then
+        print("No player selected")
+        return false
+    end
+
+    if not command or command == "" then
+        print("No command entered")
+        return false
+    end
+
+    -- Send command to server
+    local ExecuteRemote = ReplicatedStorage:FindFirstChild("NexusAdmin_Execute")
+    if ExecuteRemote then
+        ExecuteRemote:FireServer(selectedPlayer.Name, command)
+        return true
+    end
+
+    return false
+end
+
+function ExecuteTab.GetSelectedPlayer()
+    return selectedPlayer
+end
+
+function ExecuteTab.SetCommand(cmd)
+    selectedCommand = cmd
+end
+
+function ExecuteTab.GetCommand()
+    return selectedCommand
+end
+
+return ExecuteTab
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXd164bf9d"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX6174c1c3"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -1256,7 +1359,7 @@ end)
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXcee32c70"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX7e9db824"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXfa541fa8"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX4cc9ad2d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {
@@ -1269,7 +1372,8 @@ local UI = {
             Ranks = "rbxassetid://0",
             Commands = "rbxassetid://0",
             Logs = "rbxassetid://0",
-            Settings = "rbxassetid://0"
+            Settings = "rbxassetid://0",
+            Execute = "rbxassetid://0"
         },
         MainFrame = {
             Title = "Nexus Admin",
@@ -1300,6 +1404,29 @@ local UI = {
             BackgroundColor = Color3.fromRGB(255, 100, 100),
             TextColor = Color3.fromRGB(255, 255, 255),
             Duration = 5
+        },
+        ExecuteTab = {
+            Title = "Execute Commands",
+            TargetSelection = {
+                Title = "Select Target",
+                PlayerList = {},
+                SelectedPlayer = nil
+            },
+            CommandInput = {
+                Placeholder = "Enter command (e.g., kick, ban, warn)",
+                Value = ""
+            },
+            TargetInfo = {
+                Avatar = "",
+                Username = "",
+                Rank = "",
+                UserId = 0,
+                Level = 0
+            },
+            ExecuteButton = {
+                Text = "Execute",
+                Enabled = false
+            }
         }
     }
 }
@@ -1355,6 +1482,37 @@ function UI.GetDashboardContent(player, permissionData)
         Level = permissionData.Level or 0,
         IsPlaceOwner = permissionData.IsPlaceOwner or false,
         AccessSource = permissionData.AccessSource or "ManualRank"
+    }
+end
+
+function UI.CreateExecuteTab(players)
+    -- Creates the Execute tab with player list
+    UI.Components.ExecuteTab.TargetSelection.PlayerList = players
+    return UI.Components.ExecuteTab
+end
+
+function UI.SelectTargetPlayer(player)
+    -- Updates the target info when a player is selected
+    UI.Components.ExecuteTab.SelectedPlayer = player
+    UI.Components.ExecuteTab.TargetInfo.Username = player.Name
+    UI.Components.ExecuteTab.TargetInfo.UserId = player.UserId
+    UI.Components.ExecuteTab.TargetInfo.Avatar = "https://www.roblox.com/bust-thumbnails/image?userId=" .. player.UserId .. "&amp;width=420&amp;height=420&amp;format=png"
+    UI.Components.ExecuteTab.ExecuteButton.Enabled = true
+    return UI.Components.ExecuteTab.TargetInfo
+end
+
+function UI.UpdateTargetRankInfo(rankName, level)
+    -- Updates the target's rank information
+    UI.Components.ExecuteTab.TargetInfo.Rank = rankName
+    UI.Components.ExecuteTab.TargetInfo.Level = level
+end
+
+function UI.GetExecuteTabState()
+    -- Returns the current state of the Execute tab
+    return {
+        SelectedPlayer = UI.Components.ExecuteTab.SelectedPlayer,
+        Command = UI.Components.ExecuteTab.CommandInput.Value,
+        TargetInfo = UI.Components.ExecuteTab.TargetInfo
     }
 end
 

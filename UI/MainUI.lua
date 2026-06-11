@@ -11,7 +11,8 @@ local UI = {
             Ranks = "rbxassetid://0",
             Commands = "rbxassetid://0",
             Logs = "rbxassetid://0",
-            Settings = "rbxassetid://0"
+            Settings = "rbxassetid://0",
+            Execute = "rbxassetid://0"
         },
         MainFrame = {
             Title = "Nexus Admin",
@@ -42,6 +43,29 @@ local UI = {
             BackgroundColor = Color3.fromRGB(255, 100, 100),
             TextColor = Color3.fromRGB(255, 255, 255),
             Duration = 5
+        },
+        ExecuteTab = {
+            Title = "Execute Commands",
+            TargetSelection = {
+                Title = "Select Target",
+                PlayerList = {},
+                SelectedPlayer = nil
+            },
+            CommandInput = {
+                Placeholder = "Enter command (e.g., kick, ban, warn)",
+                Value = ""
+            },
+            TargetInfo = {
+                Avatar = "",
+                Username = "",
+                Rank = "",
+                UserId = 0,
+                Level = 0
+            },
+            ExecuteButton = {
+                Text = "Execute",
+                Enabled = false
+            }
         }
     }
 }
@@ -97,6 +121,37 @@ function UI.GetDashboardContent(player, permissionData)
         Level = permissionData.Level or 0,
         IsPlaceOwner = permissionData.IsPlaceOwner or false,
         AccessSource = permissionData.AccessSource or "ManualRank"
+    }
+end
+
+function UI.CreateExecuteTab(players)
+    -- Creates the Execute tab with player list
+    UI.Components.ExecuteTab.TargetSelection.PlayerList = players
+    return UI.Components.ExecuteTab
+end
+
+function UI.SelectTargetPlayer(player)
+    -- Updates the target info when a player is selected
+    UI.Components.ExecuteTab.SelectedPlayer = player
+    UI.Components.ExecuteTab.TargetInfo.Username = player.Name
+    UI.Components.ExecuteTab.TargetInfo.UserId = player.UserId
+    UI.Components.ExecuteTab.TargetInfo.Avatar = "https://www.roblox.com/bust-thumbnails/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
+    UI.Components.ExecuteTab.ExecuteButton.Enabled = true
+    return UI.Components.ExecuteTab.TargetInfo
+end
+
+function UI.UpdateTargetRankInfo(rankName, level)
+    -- Updates the target's rank information
+    UI.Components.ExecuteTab.TargetInfo.Rank = rankName
+    UI.Components.ExecuteTab.TargetInfo.Level = level
+end
+
+function UI.GetExecuteTabState()
+    -- Returns the current state of the Execute tab
+    return {
+        SelectedPlayer = UI.Components.ExecuteTab.SelectedPlayer,
+        Command = UI.Components.ExecuteTab.CommandInput.Value,
+        TargetInfo = UI.Components.ExecuteTab.TargetInfo
     }
 end
 

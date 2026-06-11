@@ -31,6 +31,10 @@ local NoClipEvent = Instance.new("RemoteEvent")
 NoClipEvent.Name = "NexusAdmin_NoClip"
 NoClipEvent.Parent = ReplicatedStorage
 
+local ExecuteTabRemote = Instance.new("RemoteEvent")
+ExecuteTabRemote.Name = "NexusAdmin_Execute"
+ExecuteTabRemote.Parent = ReplicatedStorage
+
 local function notifyPlayer(player, title, text)
     local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
     if not Remote then
@@ -83,3 +87,16 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
+
+ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
+    if typeof(targetName) ~= "string" or typeof(command) ~= "string" then
+        return
+    end
+
+    local permission = RankManager.GetPermissionData(player)
+    if permission.CanOpen then
+        -- Build the command with target
+        local finalCmd = Config.Prefix .. command .. " " .. targetName
+        CommandManager.Execute(player, finalCmd)
+    end
+end)
