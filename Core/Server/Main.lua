@@ -37,6 +37,14 @@ local ExecuteTabRemote = Instance.new("RemoteEvent")
 ExecuteTabRemote.Name = "NexusAdmin_Execute"
 ExecuteTabRemote.Parent = ReplicatedStorage
 
+local GetCommands = Instance.new("RemoteFunction")
+GetCommands.Name = "NexusAdmin_GetCommands"
+GetCommands.Parent = ReplicatedStorage
+
+local GetCommandInfo = Instance.new("RemoteFunction")
+GetCommandInfo.Name = "NexusAdmin_GetCommandInfo"
+GetCommandInfo.Parent = ReplicatedStorage
+
 local function notifyPlayer(player, title, text)
     local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
     if not Remote then
@@ -109,3 +117,12 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
         CommandManager.Execute(player, finalCmd)
     end
 end)
+
+GetCommands.OnServerInvoke = function(player)
+    local playerLevel = RankManager.GetPlayerRank(player)
+    return CommandManager.GetAccessibleCommands(playerLevel)
+end
+
+GetCommandInfo.OnServerInvoke = function(player, commandName)
+    return CommandManager.GetCommandInfo(commandName)
+end

@@ -397,3 +397,131 @@ function UI.CreateTagCard(playerName, userId, tagName, tagColor, icon)
         }
     }
 end
+
+-- Modern Command Search Tab UI
+function UI.CreateCommandSearchTab()
+    return {
+        Type = "CommandSearch",
+        Title = "Commands",
+        Subtitle = "Search and learn about available commands",
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Search Bar
+        SearchBar = {
+            Placeholder = "Search commands by name or description...",
+            BackgroundColor = Colors.Secondary,
+            TextColor = Colors.Text,
+            CornerRadius = 8,
+            Padding = 12,
+            BorderColor = Colors.Accent,
+            BorderSize = 1
+        },
+        
+        -- Filter Options
+        Filters = {
+            {
+                Name = "All Commands",
+                Icon = "📋",
+                Action = "all"
+            },
+            {
+                Name = "Moderation",
+                Icon = "🛡️",
+                Action = "moderation"
+            },
+            {
+                Name = "Utility",
+                Icon = "⚙️",
+                Action = "utility"
+            },
+            {
+                Name = "Admin",
+                Icon = "👑",
+                Action = "admin"
+            }
+        }
+    }
+end
+
+function UI.CreateCommandCard(commandName, level, description, canUse)
+    return {
+        Type = "CommandCard",
+        CommandName = commandName,
+        RequiredLevel = level,
+        Description = description,
+        CanUse = canUse,
+        
+        -- Modern styling
+        CardColor = canUse and Colors.Secondary or Color3.fromRGB(80, 40, 40),
+        CardBorderColor = canUse and Colors.Accent or Colors.Danger,
+        CardBorderSize = 2,
+        CardCornerRadius = 8,
+        CardPadding = 15,
+        
+        -- Content
+        Content = {
+            Title = ":" .. commandName,
+            Subtitle = "Required Level: " .. level,
+            Body = description,
+            Status = canUse and "✅ Available" or "🔒 Locked",
+            StatusColor = canUse and Colors.Success or Colors.Danger
+        },
+        
+        -- Action
+        CopyButton = {
+            Text = "Copy Command",
+            Color = Colors.Accent,
+            Action = "CopyCommand"
+        }
+    }
+end
+
+function UI.CreateCommandDetailView(commandName, level, description, usage, examples)
+    return {
+        Type = "CommandDetail",
+        CommandName = commandName,
+        RequiredLevel = level,
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Sections
+        Sections = {
+            {
+                Title = "Command",
+                Content = ":" .. commandName,
+                Icon = "📝"
+            },
+            {
+                Title = "Description",
+                Content = description,
+                Icon = "📖"
+            },
+            {
+                Title = "Usage",
+                Content = usage or ":" .. commandName .. " [args]",
+                Icon = "💡",
+                CodeBlock = true
+            },
+            {
+                Title = "Required Level",
+                Content = tostring(level),
+                Icon = "🔐"
+            },
+            {
+                Title = "Examples",
+                Content = examples or "No examples available",
+                Icon = "📚",
+                CodeBlock = true
+            }
+        }
+    }
+end

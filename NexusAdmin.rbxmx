@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXfe77af3b"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXce93a6fb"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX445911c5"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX4e7370f9"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX16b2b591"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX696406ea"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX679a84df"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX4b6e97e0"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
@@ -340,7 +340,7 @@ function AntiExploit.MonitorBackdoor(player)
         end
     end)
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfb1d7654"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX53e98473"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -515,7 +515,7 @@ function BanManager.GetBansByPlayer(userId)
     end
     return nil
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX62336cdc"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX41d8ae3d"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -582,7 +582,87 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX243e7690"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+
+function CommandManager.GetAllCommands()
+    -- Returns all registered commands with their metadata
+    local commandList = {}
+    for name, cmd in pairs(Commands) do
+        table.insert(commandList, {
+            Name = name,
+            Level = Config.CommandLevels[name] or cmd.Level,
+            Description = cmd.Description or "No description available",
+            Enabled = cmd.Enabled
+        })
+    end
+    return commandList
+end
+
+function CommandManager.GetCommandInfo(cmdName)
+    -- Returns detailed info about a specific command
+    if Config.Aliases[cmdName] then
+        cmdName = Config.Aliases[cmdName]
+    end
+
+    local cmd = Commands[cmdName]
+    if not cmd then
+        return nil
+    end
+
+    return {
+        Name = cmdName,
+        Level = Config.CommandLevels[cmdName] or cmd.Level,
+        Description = cmd.Description or "No description available",
+        Enabled = cmd.Enabled,
+        Usage = ":" .. cmdName .. " [args]"
+    }
+end
+
+function CommandManager.SearchCommands(query, playerLevel)
+    -- Search for commands by name or description
+    local results = {}
+    local lowerQuery = query:lower()
+
+    for name, cmd in pairs(Commands) do
+        local requiredLevel = Config.CommandLevels[name] or cmd.Level
+
+        -- Only show commands the player can use (hierarchy: higher rank can use lower commands)
+        if playerLevel &gt;= requiredLevel then
+            if name:lower():find(lowerQuery, 1, true) or
+               (cmd.Description and cmd.Description:lower():find(lowerQuery, 1, true)) then
+                table.insert(results, {
+                    Name = name,
+                    Level = requiredLevel,
+                    Description = cmd.Description or "No description available",
+                    CanUse = playerLevel &gt;= requiredLevel
+                })
+            end
+        end
+    end
+
+    return results
+end
+
+function CommandManager.GetAccessibleCommands(playerLevel)
+    -- Returns all commands accessible to a player based on their level
+    local accessible = {}
+
+    for name, cmd in pairs(Commands) do
+        local requiredLevel = Config.CommandLevels[name] or cmd.Level
+
+        -- Higher ranks can use lower-level commands (hierarchy enforcement)
+        if playerLevel &gt;= requiredLevel then
+            table.insert(accessible, {
+                Name = name,
+                Level = requiredLevel,
+                Description = cmd.Description or "No description available",
+                Enabled = cmd.Enabled
+            })
+        end
+    end
+
+    return accessible
+end
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11c2b67a"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1076,7 +1156,7 @@ CommandManager.RegisterCommand("untag", 80, function(executor, args)
         notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
     end
 end, "Remove a custom tag from a player (Level 80+ only)")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfd245ab1"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2fcf93f5"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -1097,7 +1177,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5009f8a9"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX360c6779"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -1123,7 +1203,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBXd6ddc48d"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX9a73e89a"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -1161,6 +1241,14 @@ NoClipEvent.Parent = ReplicatedStorage
 local ExecuteTabRemote = Instance.new("RemoteEvent")
 ExecuteTabRemote.Name = "NexusAdmin_Execute"
 ExecuteTabRemote.Parent = ReplicatedStorage
+
+local GetCommands = Instance.new("RemoteFunction")
+GetCommands.Name = "NexusAdmin_GetCommands"
+GetCommands.Parent = ReplicatedStorage
+
+local GetCommandInfo = Instance.new("RemoteFunction")
+GetCommandInfo.Name = "NexusAdmin_GetCommandInfo"
+GetCommandInfo.Parent = ReplicatedStorage
 
 local function notifyPlayer(player, title, text)
     local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
@@ -1234,7 +1322,16 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
         CommandManager.Execute(player, finalCmd)
     end
 end)
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8f55eefd"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+
+GetCommands.OnServerInvoke = function(player)
+    local playerLevel = RankManager.GetPlayerRank(player)
+    return CommandManager.GetAccessibleCommands(playerLevel)
+end
+
+GetCommandInfo.OnServerInvoke = function(player, commandName)
+    return CommandManager.GetCommandInfo(commandName)
+end
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8aa344e3"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -1474,7 +1571,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXbdd4ee25"><Properties><string name="Name">TagManager</string><ProtectedString name="Source">local TagManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX983571c1"><Properties><string name="Name">TagManager</string><ProtectedString name="Source">local TagManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -1599,7 +1696,7 @@ function TagManager.LoadAllTags()
 end
 
 return TagManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1bf4ac10"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXd50c98af"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1675,7 +1772,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX9a0a602a"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX0ddfb2a6"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0533c7bd"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX0714810e"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1790,7 +1887,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX25e333e7"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX4f519a9f"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
 local ExecuteTab = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1876,7 +1973,90 @@ function ExecuteTab.GetCommand()
 end
 
 return ExecuteTab
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX8a69f745"><Properties><string name="Name">TagUI</string><ProtectedString name="Source">local TagUI = {}
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBXdd3d034f"><Properties><string name="Name">SearchTab</string><ProtectedString name="Source">local SearchTab = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+function SearchTab.GetAccessibleCommands(playerLevel)
+    -- Request command list from server
+    local GetCommands = ReplicatedStorage:FindFirstChild("NexusAdmin_GetCommands")
+    if GetCommands then
+        local success, commands = pcall(function()
+            return GetCommands:InvokeServer()
+        end)
+        if success and commands then
+            return commands
+        end
+    end
+    return {}
+end
+
+function SearchTab.SearchCommands(query, commands)
+    -- Client-side search filtering
+    local results = {}
+    local lowerQuery = query:lower()
+
+    for _, cmd in ipairs(commands) do
+        if cmd.Name:lower():find(lowerQuery, 1, true) or
+           (cmd.Description and cmd.Description:lower():find(lowerQuery, 1, true)) then
+            table.insert(results, cmd)
+        end
+    end
+
+    return results
+end
+
+function SearchTab.FilterCommandsByCategory(commands, category)
+    -- Filter commands by category
+    local categoryMap = {
+        moderation = {"kick", "ban", "unban", "mute", "unmute", "jail", "unjail", "warn"},
+        utility = {"teleport", "fly", "noclip", "heal", "kill", "announce", "message", "pm"},
+        admin = {"rank", "unrank", "tag", "untag", "shutdown", "viewinfo", "bring", "goto"},
+        all = {}
+    }
+
+    if category == "all" then
+        return commands
+    end
+
+    local categoryCommands = categoryMap[category] or {}
+    local filtered = {}
+
+    for _, cmd in ipairs(commands) do
+        for _, categoryCmd in ipairs(categoryCommands) do
+            if cmd.Name == categoryCmd then
+                table.insert(filtered, cmd)
+                break
+            end
+        end
+    end
+
+    return filtered
+end
+
+function SearchTab.SortCommandsByLevel(commands)
+    -- Sort commands by required level (ascending)
+    table.sort(commands, function(a, b)
+        return a.Level &lt; b.Level
+    end)
+    return commands
+end
+
+function SearchTab.GetCommandDetails(commandName)
+    -- Request detailed command info from server
+    local GetCommandInfo = ReplicatedStorage:FindFirstChild("NexusAdmin_GetCommandInfo")
+    if GetCommandInfo then
+        local success, info = pcall(function()
+            return GetCommandInfo:InvokeServer(commandName)
+        end)
+        if success and info then
+            return info
+        end
+    end
+    return nil
+end
+
+return SearchTab
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX505c8d3f"><Properties><string name="Name">TagUI</string><ProtectedString name="Source">local TagUI = {}
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -1975,7 +2155,7 @@ function TagUI.UpdateAllPlayerTags(allTags)
 end
 
 return TagUI
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX7cf5447a"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX7780f995"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX784b5045"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXcfd296ff"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -2123,7 +2303,7 @@ return TagUI
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXd605ea21"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX3033ef65"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX2b431314"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXc56fd41e"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
 local UI = {}
 
 -- Modern Color Scheme
@@ -2518,6 +2698,134 @@ function UI.CreateTagCard(playerName, userId, tagName, tagColor, icon)
                 Icon = "🗑️",
                 Color = Colors.Danger,
                 Action = "RemoveTag"
+            }
+        }
+    }
+end
+
+-- Modern Command Search Tab UI
+function UI.CreateCommandSearchTab()
+    return {
+        Type = "CommandSearch",
+        Title = "Commands",
+        Subtitle = "Search and learn about available commands",
+
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+
+        -- Search Bar
+        SearchBar = {
+            Placeholder = "Search commands by name or description...",
+            BackgroundColor = Colors.Secondary,
+            TextColor = Colors.Text,
+            CornerRadius = 8,
+            Padding = 12,
+            BorderColor = Colors.Accent,
+            BorderSize = 1
+        },
+
+        -- Filter Options
+        Filters = {
+            {
+                Name = "All Commands",
+                Icon = "📋",
+                Action = "all"
+            },
+            {
+                Name = "Moderation",
+                Icon = "🛡️",
+                Action = "moderation"
+            },
+            {
+                Name = "Utility",
+                Icon = "⚙️",
+                Action = "utility"
+            },
+            {
+                Name = "Admin",
+                Icon = "👑",
+                Action = "admin"
+            }
+        }
+    }
+end
+
+function UI.CreateCommandCard(commandName, level, description, canUse)
+    return {
+        Type = "CommandCard",
+        CommandName = commandName,
+        RequiredLevel = level,
+        Description = description,
+        CanUse = canUse,
+
+        -- Modern styling
+        CardColor = canUse and Colors.Secondary or Color3.fromRGB(80, 40, 40),
+        CardBorderColor = canUse and Colors.Accent or Colors.Danger,
+        CardBorderSize = 2,
+        CardCornerRadius = 8,
+        CardPadding = 15,
+
+        -- Content
+        Content = {
+            Title = ":" .. commandName,
+            Subtitle = "Required Level: " .. level,
+            Body = description,
+            Status = canUse and "✅ Available" or "🔒 Locked",
+            StatusColor = canUse and Colors.Success or Colors.Danger
+        },
+
+        -- Action
+        CopyButton = {
+            Text = "Copy Command",
+            Color = Colors.Accent,
+            Action = "CopyCommand"
+        }
+    }
+end
+
+function UI.CreateCommandDetailView(commandName, level, description, usage, examples)
+    return {
+        Type = "CommandDetail",
+        CommandName = commandName,
+        RequiredLevel = level,
+
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+
+        -- Sections
+        Sections = {
+            {
+                Title = "Command",
+                Content = ":" .. commandName,
+                Icon = "📝"
+            },
+            {
+                Title = "Description",
+                Content = description,
+                Icon = "📖"
+            },
+            {
+                Title = "Usage",
+                Content = usage or ":" .. commandName .. " [args]",
+                Icon = "💡",
+                CodeBlock = true
+            },
+            {
+                Title = "Required Level",
+                Content = tostring(level),
+                Icon = "🔐"
+            },
+            {
+                Title = "Examples",
+                Content = examples or "No examples available",
+                Icon = "📚",
+                CodeBlock = true
             }
         }
     }
