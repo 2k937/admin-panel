@@ -103,6 +103,52 @@ local Config = {
         sh = "shutdown",
         to = "goto",
         info = "viewinfo"
+    },
+
+    -- Anti-Exploit Settings
+    AntiExploit = {
+        Enabled = true,
+        SpeedCheck = {
+            Enabled = true,
+            MaxSpeed = 50,
+            Threshold = 100,
+            CheckInterval = 0.5
+        },
+        FlightCheck = {
+            Enabled = true,
+            MaxAirTime = 10,
+            CheckInterval = 0.3
+        },
+        NoClipCheck = {
+            Enabled = true,
+            CheckInterval = 0.5
+        },
+        GodModeCheck = {
+            Enabled = true,
+            CheckInterval = 1
+        },
+        TeleportCheck = {
+            Enabled = true,
+            MaxTeleportDistance = 500,
+            CheckInterval = 0.5
+        },
+        HumanoidStateCheck = {
+            Enabled = true,
+            CheckInterval = 0.5
+        },
+        Actions = {
+            Kick = true,
+            Ban = false,
+            BanDuration = 3600,
+            Warn = true,
+            Log = true
+        },
+        AdminExemptLevel = 60,
+        SuspiciousTracking = {
+            Enabled = true,
+            MaxWarnings = 3,
+            ResetTime = 300
+        }
     }
 }
 

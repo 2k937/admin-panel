@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
+local AntiExploit = require(script.Parent.AntiExploit)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -70,6 +71,9 @@ Players.PlayerAdded:Connect(function(player)
     if BanManager.CheckPlayerOnJoin(player) then
         return
     end
+
+    -- Start Anti-Exploit monitoring
+    AntiExploit.StartMonitoring(player)
 
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)

@@ -1,23 +1,284 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX513d7dac"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX807f93a2"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXf4c2fe06"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX3f413c95"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXf13b252d"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX020562ff"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX9179eed2"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX1a930d4d"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+local Config = require(script.Parent.Parent.Shared.Config)
+local RankManager = require(script.Parent.RankManager)
+local BanManager = require(script.Parent.BanManager)
+local WarningManager = require(script.Parent.WarningManager)
 local Players = game:GetService("Players")
 
-function AntiExploit.Init()
-    Players.PlayerAdded:Connect(function(player)
-        player.CharacterAdded:Connect(function(character)
-            -- Simple speed hack check
-            local humanoid = character:WaitForChild("Humanoid")
-            humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                if humanoid.WalkSpeed &gt; 100 then
-                    -- Flag or reset
-                end
-            end)
-        end)
+local PlayerData = {} -- [UserId] = { LastPos, LastTime, Warnings, SuspiciousCount, ResetTime }
+
+local function isAdminExempt(player)
+    local level = RankManager.GetPlayerRank(player)
+    return level &gt;= Config.AntiExploit.AdminExemptLevel
+end
+
+local function logExploit(player, exploitType, details)
+    if Config.AntiExploit.Actions.Log then
+        print("[ANTI-EXPLOIT] " .. player.Name .. " (" .. player.UserId .. ") - Type: " .. exploitType .. " - Details: " .. details)
+    end
+end
+
+local function handleExploit(player, exploitType, details)
+    if isAdminExempt(player) then
+        return
+    end
+
+    logExploit(player, exploitType, details)
+
+    if not PlayerData[player.UserId] then
+        PlayerData[player.UserId] = { Warnings = 0, SuspiciousCount = 0, ResetTime = os.time() }
+    end
+
+    local data = PlayerData[player.UserId]
+    data.SuspiciousCount = data.SuspiciousCount + 1
+
+    -- Reset warnings after specified time
+    if Config.AntiExploit.SuspiciousTracking.Enabled then
+        if os.time() - data.ResetTime &gt; Config.AntiExploit.SuspiciousTracking.ResetTime then
+            data.SuspiciousCount = 1
+            data.ResetTime = os.time()
+        end
+
+        if data.SuspiciousCount &gt;= Config.AntiExploit.SuspiciousTracking.MaxWarnings then
+            if Config.AntiExploit.Actions.Warn then
+                WarningManager.WarnPlayer(player.UserId, "Suspicious behavior detected: " .. exploitType, "Anti-Exploit", 0)
+            end
+
+            if Config.AntiExploit.Actions.Ban then
+                BanManager.BanPlayer(player.UserId, "Auto-banned for: " .. exploitType, Config.AntiExploit.Actions.BanDuration)
+            elseif Config.AntiExploit.Actions.Kick then
+                player:Kick("Kicked for suspicious activity: " .. exploitType)
+            end
+
+            data.SuspiciousCount = 0
+        end
+    end
+end
+
+function AntiExploit.CheckSpeed(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.SpeedCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
+        return
+    end
+
+    local hrp = char.HumanoidRootPart
+    local humanoid = char.Humanoid
+
+    if not PlayerData[player.UserId] then
+        PlayerData[player.UserId] = { LastPos = hrp.Position, LastTime = os.time() }
+    end
+
+    local data = PlayerData[player.UserId]
+    local currentTime = os.time()
+    local timeDiff = currentTime - (data.LastTime or currentTime)
+
+    if timeDiff &gt; 0 then
+        local distance = (hrp.Position - (data.LastPos or hrp.Position)).Magnitude
+        local speed = distance / timeDiff
+
+        if speed &gt; Config.AntiExploit.SpeedCheck.Threshold and humanoid.State ~= Enum.HumanoidStateType.Jumping then
+            handleExploit(player, "Speed Hack", "Speed: " .. math.floor(speed) .. " studs/s")
+        end
+    end
+
+    data.LastPos = hrp.Position
+    data.LastTime = currentTime
+end
+
+function AntiExploit.CheckFlight(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.FlightCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("Humanoid") then
+        return
+    end
+
+    local humanoid = char.Humanoid
+
+    if not PlayerData[player.UserId] then
+        PlayerData[player.UserId] = { AirTime = 0 }
+    end
+
+    local data = PlayerData[player.UserId]
+
+    if humanoid.State == Enum.HumanoidStateType.Freefall or humanoid.State == Enum.HumanoidStateType.Flying then
+        data.AirTime = (data.AirTime or 0) + Config.AntiExploit.FlightCheck.CheckInterval
+        if data.AirTime &gt; Config.AntiExploit.FlightCheck.MaxAirTime then
+            handleExploit(player, "Flight Hack", "Air time: " .. math.floor(data.AirTime) .. "s")
+            data.AirTime = 0
+        end
+    else
+        data.AirTime = 0
+    end
+end
+
+function AntiExploit.CheckNoClip(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.NoClipCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char then
+        return
+    end
+
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if part.CanCollide == false and part ~= char:FindFirstChild("Head") then
+                handleExploit(player, "NoClip Hack", "Part: " .. part.Name .. " has CanCollide disabled")
+                break
+            end
+        end
+    end
+end
+
+function AntiExploit.CheckGodMode(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.GodModeCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("Humanoid") then
+        return
+    end
+
+    local humanoid = char.Humanoid
+
+    if humanoid.Health == humanoid.MaxHealth and humanoid.MaxHealth &gt; 0 then
+        if not PlayerData[player.UserId] then
+            PlayerData[player.UserId] = { FullHealthTime = 0 }
+        end
+
+        local data = PlayerData[player.UserId]
+        data.FullHealthTime = (data.FullHealthTime or 0) + Config.AntiExploit.GodModeCheck.CheckInterval
+
+        if data.FullHealthTime &gt; 30 then
+            handleExploit(player, "God Mode", "Player has full health for extended time")
+            data.FullHealthTime = 0
+        end
+    else
+        if PlayerData[player.UserId] then
+            PlayerData[player.UserId].FullHealthTime = 0
+        end
+    end
+end
+
+function AntiExploit.CheckTeleport(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.TeleportCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+
+    local hrp = char.HumanoidRootPart
+
+    if not PlayerData[player.UserId] then
+        PlayerData[player.UserId] = { LastPos = hrp.Position, LastTime = os.time() }
+    end
+
+    local data = PlayerData[player.UserId]
+    local currentTime = os.time()
+    local timeDiff = currentTime - (data.LastTime or currentTime)
+
+    if timeDiff &gt; 0 then
+        local distance = (hrp.Position - (data.LastPos or hrp.Position)).Magnitude
+
+        if distance &gt; Config.AntiExploit.TeleportCheck.MaxTeleportDistance and timeDiff &lt; 0.1 then
+            handleExploit(player, "Teleport Hack", "Distance: " .. math.floor(distance) .. " studs in " .. timeDiff .. "s")
+        end
+    end
+
+    data.LastPos = hrp.Position
+    data.LastTime = currentTime
+end
+
+function AntiExploit.CheckHumanoidState(player)
+    if not Config.AntiExploit.Enabled or not Config.AntiExploit.HumanoidStateCheck.Enabled then
+        return
+    end
+
+    if isAdminExempt(player) then
+        return
+    end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("Humanoid") then
+        return
+    end
+
+    local humanoid = char.Humanoid
+    local suspiciousStates = {
+        Enum.HumanoidStateType.Flying,
+        Enum.HumanoidStateType.Jumping,
+        Enum.HumanoidStateType.Freefall
+    }
+
+    for _, state in pairs(suspiciousStates) do
+        if humanoid:GetState(state) then
+            if state == Enum.HumanoidStateType.Flying then
+                handleExploit(player, "Humanoid State Exploit", "Flying state detected")
+            end
+        end
+    end
+end
+
+function AntiExploit.StartMonitoring(player)
+    if not Config.AntiExploit.Enabled then
+        return
+    end
+
+    task.spawn(function()
+        while player.Parent and player.Character do
+            AntiExploit.CheckSpeed(player)
+            AntiExploit.CheckFlight(player)
+            AntiExploit.CheckNoClip(player)
+            AntiExploit.CheckGodMode(player)
+            AntiExploit.CheckTeleport(player)
+            AntiExploit.CheckHumanoidState(player)
+
+            task.wait(0.5)
+        end
+
+        PlayerData[player.UserId] = nil
     end)
 end
 
+function AntiExploit.StopMonitoring(player)
+    PlayerData[player.UserId] = nil
+end
+
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX01eb6979"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1f1a497d"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -126,7 +387,7 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5d0561bd"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX58464ed9"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -185,7 +446,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX3cd646ca"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX47d99d1c"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -585,7 +846,7 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
 end, "Teleports you to a player")
 
 return true
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX304cf21c"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXaafe6834"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -606,7 +867,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX343928ea"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1ec67e08"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -632,12 +893,13 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBX80364ce2"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX37713445"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
+local AntiExploit = require(script.Parent.AntiExploit)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -705,6 +967,9 @@ Players.PlayerAdded:Connect(function(player)
         return
     end
 
+    -- Start Anti-Exploit monitoring
+    AntiExploit.StartMonitoring(player)
+
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)
     end)
@@ -734,7 +999,7 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
         CommandManager.Execute(player, finalCmd)
     end
 end)
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfff2ae63"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX28c7258d"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -973,7 +1238,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11f9757d"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX76eec6c8"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1049,7 +1314,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXcff66146"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXe052676f"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX729eb02b"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX6f3ea2eb"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1164,7 +1429,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBXc42d555d"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX5a715bbf"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
 local ExecuteTab = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1250,7 +1515,7 @@ function ExecuteTab.GetCommand()
 end
 
 return ExecuteTab
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXd164bf9d"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX6174c1c3"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX9db62481"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX337ab4e5"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -1355,11 +1620,57 @@ return ExecuteTab
         sh = "shutdown",
         to = "goto",
         info = "viewinfo"
+    },
+
+    -- Anti-Exploit Settings
+    AntiExploit = {
+        Enabled = true,
+        SpeedCheck = {
+            Enabled = true,
+            MaxSpeed = 50,
+            Threshold = 100,
+            CheckInterval = 0.5
+        },
+        FlightCheck = {
+            Enabled = true,
+            MaxAirTime = 10,
+            CheckInterval = 0.3
+        },
+        NoClipCheck = {
+            Enabled = true,
+            CheckInterval = 0.5
+        },
+        GodModeCheck = {
+            Enabled = true,
+            CheckInterval = 1
+        },
+        TeleportCheck = {
+            Enabled = true,
+            MaxTeleportDistance = 500,
+            CheckInterval = 0.5
+        },
+        HumanoidStateCheck = {
+            Enabled = true,
+            CheckInterval = 0.5
+        },
+        Actions = {
+            Kick = true,
+            Ban = false,
+            BanDuration = 3600,
+            Warn = true,
+            Log = true
+        },
+        AdminExemptLevel = 60,
+        SuspiciousTracking = {
+            Enabled = true,
+            MaxWarnings = 3,
+            ResetTime = 300
+        }
     }
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXfa541fa8"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX4cc9ad2d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX59953995"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXe8bc867d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {
