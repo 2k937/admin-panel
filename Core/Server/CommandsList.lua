@@ -425,3 +425,70 @@ CommandManager.RegisterCommand("bans", 40, function(executor, args)
 
     notify(executor, "Nexus Admin", banList)
 end, "Shows all active bans")
+
+CommandManager.RegisterCommand("tag", 80, function(executor, args)
+    local TagManager = require(script.Parent.TagManager)
+    local RankManager = require(script.Parent.RankManager)
+    
+    if RankManager.GetPlayerRank(executor) < 80 then
+        notify(executor, "Nexus Admin", "You need level 80+ to use this command.")
+        return
+    end
+
+    if #args < 2 then
+        notify(executor, "Nexus Admin", "Usage: :tag <player> <tag_name> [color_hex] [icon]")
+        return
+    end
+
+    local targetPlayers = getPlayers(args[1], executor)
+    if #targetPlayers == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    local tagName = args[2]
+    local tagColor = Color3.fromRGB(0, 170, 255) -- Default blue
+    local icon = args[4] or ""
+
+    -- Parse color if provided (format: RRGGBB)
+    if args[3] then
+        local hexColor = args[3]:gsub("#", "")
+        if #hexColor == 6 then
+            local r = tonumber(hexColor:sub(1, 2), 16) or 0
+            local g = tonumber(hexColor:sub(3, 4), 16) or 0
+            local b = tonumber(hexColor:sub(5, 6), 16) or 0
+            tagColor = Color3.fromRGB(r, g, b)
+        end
+    end
+
+    for _, target in ipairs(targetPlayers) do
+        TagManager.SetPlayerTag(target.UserId, tagName, tagColor, icon)
+        notify(executor, "Nexus Admin", "Tagged " .. target.Name .. " as '" .. tagName .. "'")
+    end
+end, "Assign a custom tag to a player (Level 80+ only)")
+
+CommandManager.RegisterCommand("untag", 80, function(executor, args)
+    local TagManager = require(script.Parent.TagManager)
+    local RankManager = require(script.Parent.RankManager)
+    
+    if RankManager.GetPlayerRank(executor) < 80 then
+        notify(executor, "Nexus Admin", "You need level 80+ to use this command.")
+        return
+    end
+
+    if #args < 1 then
+        notify(executor, "Nexus Admin", "Usage: :untag <player>")
+        return
+    end
+
+    local targetPlayers = getPlayers(args[1], executor)
+    if #targetPlayers == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in ipairs(targetPlayers) do
+        TagManager.RemovePlayerTag(target.UserId)
+        notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
+    end
+end, "Remove a custom tag from a player (Level 80+ only)")

@@ -5,6 +5,7 @@ local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
 local AntiExploit = require(script.Parent.AntiExploit)
+local TagManager = require(script.Parent.TagManager)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -83,6 +84,9 @@ Players.PlayerAdded:Connect(function(player)
     -- Load manual rank, then resolve effective owner/group/manual access.
     local level = RankManager.LoadPlayerRank(player)
     local permission = RankManager.GetPermissionData(player)
+
+    -- Load player tag if it exists
+    TagManager.LoadPlayerTag(player.UserId)
 
     if permission.CanOpen then
         -- Welcome notification for admins and group-rank users.

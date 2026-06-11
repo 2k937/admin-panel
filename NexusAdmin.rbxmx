@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX8bd19da5"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX22cfcdb4"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXeaf20381"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX674b6548"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXfe77af3b"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXce93a6fb"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX445911c5"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX4e7370f9"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
@@ -340,7 +340,7 @@ function AntiExploit.MonitorBackdoor(player)
         end
     end)
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8978157b"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfb1d7654"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -515,7 +515,7 @@ function BanManager.GetBansByPlayer(userId)
     end
     return nil
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1b361a3b"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX62336cdc"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -582,7 +582,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX401fd7a6"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX243e7690"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1009,7 +1009,74 @@ CommandManager.RegisterCommand("bans", 40, function(executor, args)
 
     notify(executor, "Nexus Admin", banList)
 end, "Shows all active bans")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8002db4b"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+
+CommandManager.RegisterCommand("tag", 80, function(executor, args)
+    local TagManager = require(script.Parent.TagManager)
+    local RankManager = require(script.Parent.RankManager)
+
+    if RankManager.GetPlayerRank(executor) &lt; 80 then
+        notify(executor, "Nexus Admin", "You need level 80+ to use this command.")
+        return
+    end
+
+    if #args &lt; 2 then
+        notify(executor, "Nexus Admin", "Usage: :tag &lt;player&gt; &lt;tag_name&gt; [color_hex] [icon]")
+        return
+    end
+
+    local targetPlayers = getPlayers(args[1], executor)
+    if #targetPlayers == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    local tagName = args[2]
+    local tagColor = Color3.fromRGB(0, 170, 255) -- Default blue
+    local icon = args[4] or ""
+
+    -- Parse color if provided (format: RRGGBB)
+    if args[3] then
+        local hexColor = args[3]:gsub("#", "")
+        if #hexColor == 6 then
+            local r = tonumber(hexColor:sub(1, 2), 16) or 0
+            local g = tonumber(hexColor:sub(3, 4), 16) or 0
+            local b = tonumber(hexColor:sub(5, 6), 16) or 0
+            tagColor = Color3.fromRGB(r, g, b)
+        end
+    end
+
+    for _, target in ipairs(targetPlayers) do
+        TagManager.SetPlayerTag(target.UserId, tagName, tagColor, icon)
+        notify(executor, "Nexus Admin", "Tagged " .. target.Name .. " as '" .. tagName .. "'")
+    end
+end, "Assign a custom tag to a player (Level 80+ only)")
+
+CommandManager.RegisterCommand("untag", 80, function(executor, args)
+    local TagManager = require(script.Parent.TagManager)
+    local RankManager = require(script.Parent.RankManager)
+
+    if RankManager.GetPlayerRank(executor) &lt; 80 then
+        notify(executor, "Nexus Admin", "You need level 80+ to use this command.")
+        return
+    end
+
+    if #args &lt; 1 then
+        notify(executor, "Nexus Admin", "Usage: :untag &lt;player&gt;")
+        return
+    end
+
+    local targetPlayers = getPlayers(args[1], executor)
+    if #targetPlayers == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in ipairs(targetPlayers) do
+        TagManager.RemovePlayerTag(target.UserId)
+        notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
+    end
+end, "Remove a custom tag from a player (Level 80+ only)")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXfd245ab1"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -1030,7 +1097,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXb1439b40"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX5009f8a9"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -1056,13 +1123,14 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBXc7fbee33"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBXd6ddc48d"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
 local AntiExploit = require(script.Parent.AntiExploit)
+local TagManager = require(script.Parent.TagManager)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -1142,6 +1210,9 @@ Players.PlayerAdded:Connect(function(player)
     local level = RankManager.LoadPlayerRank(player)
     local permission = RankManager.GetPermissionData(player)
 
+    -- Load player tag if it exists
+    TagManager.LoadPlayerTag(player.UserId)
+
     if permission.CanOpen then
         -- Welcome notification for admins and group-rank users.
         task.wait(2) -- Wait for client to load
@@ -1163,7 +1234,7 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
         CommandManager.Execute(player, finalCmd)
     end
 end)
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX039a80e3"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8f55eefd"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -1403,7 +1474,132 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXd62cffaf"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXbdd4ee25"><Properties><string name="Name">TagManager</string><ProtectedString name="Source">local TagManager = {}
+local Config = require(script.Parent.Parent.Shared.Config)
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+
+local PlayerTags = {} -- [UserId] = { Name = "", Color = Color3, Icon = "" }
+local TagDataStore = nil
+
+local function initDataStore()
+    if not TagDataStore then
+        local success, ds = pcall(function()
+            return DataStoreService:GetDataStore("NexusAdmin_Tags")
+        end)
+        if success then
+            TagDataStore = ds
+        end
+    end
+end
+
+function TagManager.SetPlayerTag(userId, tagName, tagColor, icon)
+    if not Config.Tags.Enabled then
+        return false
+    end
+
+    if not tagName or tagName == "" then
+        return false
+    end
+
+    if #tagName &gt; Config.Tags.MaxTagLength then
+        return false
+    end
+
+    PlayerTags[userId] = {
+        Name = tagName,
+        Color = tagColor or Color3.fromRGB(255, 255, 255),
+        Icon = icon or ""
+    }
+
+    -- Save to DataStore
+    initDataStore()
+    if TagDataStore then
+        local success = pcall(function()
+            TagDataStore:SetAsync("Tag_" .. userId, {
+                Name = tagName,
+                Color = { tagColor.R, tagColor.G, tagColor.B },
+                Icon = icon or ""
+            })
+        end)
+        return success
+    end
+
+    return true
+end
+
+function TagManager.RemovePlayerTag(userId)
+    if not Config.Tags.Enabled then
+        return false
+    end
+
+    PlayerTags[userId] = nil
+
+    -- Remove from DataStore
+    initDataStore()
+    if TagDataStore then
+        local success = pcall(function()
+            TagDataStore:RemoveAsync("Tag_" .. userId)
+        end)
+        return success
+    end
+
+    return true
+end
+
+function TagManager.GetPlayerTag(userId)
+    if not Config.Tags.Enabled then
+        return nil
+    end
+
+    return PlayerTags[userId]
+end
+
+function TagManager.LoadPlayerTag(userId)
+    if not Config.Tags.Enabled then
+        return nil
+    end
+
+    initDataStore()
+    if TagDataStore then
+        local success, tagData = pcall(function()
+            return TagDataStore:GetAsync("Tag_" .. userId)
+        end)
+
+        if success and tagData then
+            local color = Color3.fromRGB(tagData.Color[1] * 255, tagData.Color[2] * 255, tagData.Color[3] * 255)
+            PlayerTags[userId] = {
+                Name = tagData.Name,
+                Color = color,
+                Icon = tagData.Icon or ""
+            }
+            return PlayerTags[userId]
+        end
+    end
+
+    return nil
+end
+
+function TagManager.GetAllPlayerTags()
+    if not Config.Tags.Enabled then
+        return {}
+    end
+
+    return PlayerTags
+end
+
+function TagManager.LoadAllTags()
+    if not Config.Tags.Enabled then
+        return
+    end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        TagManager.LoadPlayerTag(player.UserId)
+    end
+end
+
+return TagManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1bf4ac10"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1479,7 +1675,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX8a75e496"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXd50a5e6f"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX9a0a602a"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX0ddfb2a6"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1594,7 +1790,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX7687a8b9"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX25e333e7"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
 local ExecuteTab = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1680,12 +1876,119 @@ function ExecuteTab.GetCommand()
 end
 
 return ExecuteTab
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXefb284e1"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX7a97be67"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX8a69f745"><Properties><string name="Name">TagUI</string><ProtectedString name="Source">local TagUI = {}
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local function createTagLabel(player, tagData)
+    if not tagData or not tagData.Name then
+        return nil
+    end
+
+    local screenGui = Instance.new("BillboardGui")
+    screenGui.Name = "TagBillboard_" .. player.UserId
+    screenGui.Size = UDim2.new(6, 0, 2, 0)
+    screenGui.MaxDistance = 100
+    screenGui.StudsOffset = Vector3.new(0, 3, 0)
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Name = "TagLabel"
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundColor3 = tagData.Color
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextSize = 14
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Text = (tagData.Icon or "") .. " " .. tagData.Name
+    textLabel.BackgroundTransparency = 0.2
+    textLabel.BorderSizePixel = 0
+
+    -- Modern rounded corners effect
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = textLabel
+
+    -- Add padding
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, 8)
+    padding.PaddingRight = UDim.new(0, 8)
+    padding.PaddingTop = UDim.new(0, 4)
+    padding.PaddingBottom = UDim.new(0, 4)
+    padding.Parent = textLabel
+
+    textLabel.Parent = screenGui
+
+    local char = player.Character
+    if char and char:FindFirstChild("Head") then
+        screenGui.Adornee = char.Head
+        screenGui.Parent = char.Head
+    end
+
+    return screenGui
+end
+
+function TagUI.RenderPlayerTag(player, tagData)
+    if not player or not player.Character then
+        return
+    end
+
+    local head = player.Character:FindFirstChild("Head")
+    if not head then
+        return
+    end
+
+    -- Remove existing tag
+    local existingTag = head:FindFirstChild("TagBillboard_" .. player.UserId)
+    if existingTag then
+        existingTag:Destroy()
+    end
+
+    -- Create new tag if data exists
+    if tagData then
+        createTagLabel(player, tagData)
+    end
+end
+
+function TagUI.RemovePlayerTag(player)
+    if not player or not player.Character then
+        return
+    end
+
+    local head = player.Character:FindFirstChild("Head")
+    if not head then
+        return
+    end
+
+    local existingTag = head:FindFirstChild("TagBillboard_" .. player.UserId)
+    if existingTag then
+        existingTag:Destroy()
+    end
+end
+
+function TagUI.UpdateAllPlayerTags(allTags)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player then
+            local tagData = allTags[player.UserId]
+            TagUI.RenderPlayerTag(player, tagData)
+        end
+    end
+end
+
+return TagUI
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX7cf5447a"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX7780f995"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
     ThemeColor = Color3.fromRGB(45, 45, 45),
     AccentColor = Color3.fromRGB(0, 170, 255),
+
+    -- Tags System (Overhead player tags)
+    Tags = {
+        Enabled = true,
+        MinimumLevelToAssign = 80,
+        MaxTagLength = 20,
+        DefaultTags = {}
+    },
 
     -- Access Settings
     Access = {
@@ -1755,7 +2058,9 @@ return ExecuteTab
         viewinfo = 40,
         bring = 60,
         goto = 60,
-        bans = 40
+        bans = 40,
+        tag = 80,
+        untag = 80
     },
 
     -- Command Aliases
@@ -1818,7 +2123,7 @@ return ExecuteTab
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX2a37464b"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXb2e1fbc7"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXd605ea21"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX3033ef65"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
 local UI = {}
 
 -- Modern Color Scheme
@@ -2110,4 +2415,111 @@ function UI.CreateModernTab(name, icon, content)
 end
 
 return UI
+
+-- Modern Tag Management UI
+function UI.CreateTagManagementPanel()
+    return {
+        Type = "TagManagement",
+        Title = "Player Tags",
+        Subtitle = "Manage custom player tags (Level 80+ only)",
+
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+
+        -- Sections
+        Sections = {
+            {
+                Name = "Assign Tag",
+                Icon = "🏷️",
+                Fields = {
+                    {
+                        Label = "Player",
+                        Type = "PlayerSelect",
+                        Placeholder = "Select a player"
+                    },
+                    {
+                        Label = "Tag Name",
+                        Type = "TextInput",
+                        Placeholder = "e.g., Moderator, Developer",
+                        MaxLength = 20
+                    },
+                    {
+                        Label = "Tag Color",
+                        Type = "ColorPicker",
+                        DefaultColor = Colors.Accent
+                    },
+                    {
+                        Label = "Tag Icon (Optional)",
+                        Type = "TextInput",
+                        Placeholder = "e.g., 🛡️, ⚙️",
+                        MaxLength = 2
+                    }
+                },
+                Action = "AssignTag",
+                ButtonText = "Assign Tag",
+                ButtonColor = Colors.Success
+            },
+            {
+                Name = "Remove Tag",
+                Icon = "❌",
+                Fields = {
+                    {
+                        Label = "Player",
+                        Type = "PlayerSelect",
+                        Placeholder = "Select a player"
+                    }
+                },
+                Action = "RemoveTag",
+                ButtonText = "Remove Tag",
+                ButtonColor = Colors.Danger
+            },
+            {
+                Name = "Active Tags",
+                Icon = "📋",
+                Type = "TagList",
+                Content = {
+                    -- Dynamically populated with current tags
+                    -- Format: { PlayerName = "...", UserId = ..., TagName = "...", TagColor = Color3, Icon = "..." }
+                }
+            }
+        }
+    }
+end
+
+function UI.CreateTagCard(playerName, userId, tagName, tagColor, icon)
+    return {
+        Type = "TagCard",
+        PlayerName = playerName,
+        UserId = userId,
+        TagName = tagName,
+        TagColor = tagColor,
+        Icon = icon or "",
+
+        -- Modern styling
+        CardColor = Colors.Secondary,
+        CardBorderColor = tagColor,
+        CardBorderSize = 2,
+        CardCornerRadius = 8,
+        CardPadding = 12,
+
+        -- Actions
+        Actions = {
+            {
+                Name = "Edit",
+                Icon = "✏️",
+                Color = Colors.Accent,
+                Action = "EditTag"
+            },
+            {
+                Name = "Remove",
+                Icon = "🗑️",
+                Color = Colors.Danger,
+                Action = "RemoveTag"
+            }
+        }
+    }
+end
 </ProtectedString></Properties></Item></Item></Item></roblox>

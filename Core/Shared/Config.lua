@@ -5,6 +5,14 @@ local Config = {
     ThemeColor = Color3.fromRGB(45, 45, 45),
     AccentColor = Color3.fromRGB(0, 170, 255),
 
+    -- Tags System (Overhead player tags)
+    Tags = {
+        Enabled = true,
+        MinimumLevelToAssign = 80,
+        MaxTagLength = 20,
+        DefaultTags = {}
+    },
+
     -- Access Settings
     Access = {
         -- Minimum admin level required to open the panel from saved/manual ranks.
@@ -73,7 +81,9 @@ local Config = {
         viewinfo = 40,
         bring = 60,
         goto = 60,
-        bans = 40
+        bans = 40,
+        tag = 80,
+        untag = 80
     },
 
     -- Command Aliases

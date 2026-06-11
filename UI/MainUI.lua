@@ -290,3 +290,110 @@ function UI.CreateModernTab(name, icon, content)
 end
 
 return UI
+
+-- Modern Tag Management UI
+function UI.CreateTagManagementPanel()
+    return {
+        Type = "TagManagement",
+        Title = "Player Tags",
+        Subtitle = "Manage custom player tags (Level 80+ only)",
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Sections
+        Sections = {
+            {
+                Name = "Assign Tag",
+                Icon = "🏷️",
+                Fields = {
+                    {
+                        Label = "Player",
+                        Type = "PlayerSelect",
+                        Placeholder = "Select a player"
+                    },
+                    {
+                        Label = "Tag Name",
+                        Type = "TextInput",
+                        Placeholder = "e.g., Moderator, Developer",
+                        MaxLength = 20
+                    },
+                    {
+                        Label = "Tag Color",
+                        Type = "ColorPicker",
+                        DefaultColor = Colors.Accent
+                    },
+                    {
+                        Label = "Tag Icon (Optional)",
+                        Type = "TextInput",
+                        Placeholder = "e.g., 🛡️, ⚙️",
+                        MaxLength = 2
+                    }
+                },
+                Action = "AssignTag",
+                ButtonText = "Assign Tag",
+                ButtonColor = Colors.Success
+            },
+            {
+                Name = "Remove Tag",
+                Icon = "❌",
+                Fields = {
+                    {
+                        Label = "Player",
+                        Type = "PlayerSelect",
+                        Placeholder = "Select a player"
+                    }
+                },
+                Action = "RemoveTag",
+                ButtonText = "Remove Tag",
+                ButtonColor = Colors.Danger
+            },
+            {
+                Name = "Active Tags",
+                Icon = "📋",
+                Type = "TagList",
+                Content = {
+                    -- Dynamically populated with current tags
+                    -- Format: { PlayerName = "...", UserId = ..., TagName = "...", TagColor = Color3, Icon = "..." }
+                }
+            }
+        }
+    }
+end
+
+function UI.CreateTagCard(playerName, userId, tagName, tagColor, icon)
+    return {
+        Type = "TagCard",
+        PlayerName = playerName,
+        UserId = userId,
+        TagName = tagName,
+        TagColor = tagColor,
+        Icon = icon or "",
+        
+        -- Modern styling
+        CardColor = Colors.Secondary,
+        CardBorderColor = tagColor,
+        CardBorderSize = 2,
+        CardCornerRadius = 8,
+        CardPadding = 12,
+        
+        -- Actions
+        Actions = {
+            {
+                Name = "Edit",
+                Icon = "✏️",
+                Color = Colors.Accent,
+                Action = "EditTag"
+            },
+            {
+                Name = "Remove",
+                Icon = "🗑️",
+                Color = Colors.Danger,
+                Action = "RemoveTag"
+            }
+        }
+    }
+end
