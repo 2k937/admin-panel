@@ -51,22 +51,23 @@ local function getBestGroupAccess(player)
 
     for _, rule in ipairs(groupRankConfig.Groups) do
         local groupId = tonumber(rule.GroupId)
-        local minimumRank = tonumber(rule.MinimumRank) or 0
+        local roleNumber = tonumber(rule.RoleNumber) or 0
         local accessLevel = tonumber(rule.Level) or ((Config.Access or {}).MinimumPanelLevel or 20)
+        local rankName = rule.Name or ("Group Rank " .. tostring(roleNumber))
 
         if groupId and groupId > 0 then
             local success, playerGroupRank = pcall(function()
                 return player:GetRankInGroup(groupId)
             end)
 
-            if success and playerGroupRank >= minimumRank and playerGroupRank > 0 then
+            if success and playerGroupRank == roleNumber and playerGroupRank > 0 then
                 if not bestAccess or accessLevel > bestAccess.Level then
                     bestAccess = {
                         Level = accessLevel,
-                        Name = rule.Name or ("Group Rank " .. tostring(playerGroupRank)),
+                        Name = rankName,
                         GroupId = groupId,
                         GroupRank = playerGroupRank,
-                        MinimumRank = minimumRank
+                        RoleNumber = roleNumber
                     }
                 end
             end

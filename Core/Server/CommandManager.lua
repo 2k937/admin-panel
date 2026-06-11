@@ -14,12 +14,20 @@ function CommandManager.RegisterCommand(name, level, callback, description)
 end
 
 function CommandManager.Execute(player, message)
-    if typeof(message) ~= "string" or message:sub(1, 1) ~= Config.Prefix then
+    if typeof(message) ~= "string" or #message < 2 or message:sub(1, 1) ~= Config.Prefix then
         return
     end
 
-    local args = message:sub(2):split(" ")
+    local commandString = message:sub(2)
+    if not commandString or commandString == "" then
+        return
+    end
+
+    local args = commandString:split(" ")
     local cmdName = args[1] and args[1]:lower() or ""
+    if cmdName == "" then
+        return
+    end
     table.remove(args, 1)
 
     -- Check Aliases
