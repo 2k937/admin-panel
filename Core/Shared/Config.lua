@@ -98,9 +98,20 @@ local Config = {
         info = "viewinfo"
     },
 
+    -- Access Settings
+    Access = {
+        MinimumPanelLevel = 20,
+        PlaceOwner = {
+            Enabled = true,
+            Level = 255,
+            Name = "Place Owner"
+        }
+    },
+
     -- Anti-Exploit Settings
     AntiExploit = {
         Enabled = true,
+        AdminExemptLevel = 60,
         SpeedCheck = {
             Enabled = true,
             MaxSpeed = 50,
@@ -149,6 +160,17 @@ local Config = {
         Enabled = true,
         MaxTagLength = 20,
         DefaultColor = Color3.fromRGB(0, 170, 255)
+    },
+
+    -- Default Rank Definitions
+    DefaultRanks = {
+        [0] = { Name = "Player", Level = 0 },
+        [20] = { Name = "Moderator", Level = 20 },
+        [40] = { Name = "Admin", Level = 40 },
+        [60] = { Name = "Super Admin", Level = 60 },
+        [80] = { Name = "Head Admin", Level = 80 },
+        [100] = { Name = "Creator", Level = 100 },
+        [255] = { Name = "Place Owner", Level = 255 }
     },
 
     -- Core Settings

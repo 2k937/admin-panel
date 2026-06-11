@@ -116,9 +116,61 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Remote Event Handling
-ReplicatedStorage:WaitForChild("NexusAdmin_Notify").OnClientEvent:Connect(function(title, text)
-    -- Create a notification using MainUI logic
-    print("NOTIFICATION: [" .. title .. "] " .. text)
+local function showNotification(title, text, type)
+    local notificationData = MainUI.CreateModernNotification(title, text, type or "info")
+    
+    local notificationFrame = Instance.new("Frame")
+    notificationFrame.Name = "Notification"
+    notificationFrame.Size = UDim2.new(0, 300, 0, 80)
+    notificationFrame.Position = UDim2.new(1, 10, 1, -100)
+    notificationFrame.AnchorPoint = Vector2.new(1, 1)
+    notificationFrame.BackgroundColor3 = notificationData.BackgroundColor
+    notificationFrame.BorderSizePixel = 0
+    notificationFrame.Parent = ScreenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = notificationData.CornerRadius
+    corner.Parent = notificationFrame
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -20, 0, 20)
+    titleLabel.Position = UDim2.new(0, 10, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = notificationData.Title
+    titleLabel.TextColor3 = notificationData.TextColor
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 14
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = notificationFrame
+    
+    local messageLabel = Instance.new("TextLabel")
+    messageLabel.Size = UDim2.new(1, -20, 1, -40)
+    messageLabel.Position = UDim2.new(0, 10, 0, 30)
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Text = notificationData.Message
+    messageLabel.TextColor3 = notificationData.TextColor
+    messageLabel.Font = Enum.Font.Gotham
+    messageLabel.TextSize = 12
+    messageLabel.TextWrapped = true
+    messageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    messageLabel.TextYAlignment = Enum.TextYAlignment.Top
+    messageLabel.Parent = notificationFrame
+    
+    -- Animate in
+    TweenService:Create(notificationFrame, TweenInfo.new(notificationData.FadeInDuration), {Position = UDim2.new(1, -20, 1, -100)}):Play()
+    
+    -- Wait and animate out
+    task.delay(notificationData.DisplayDuration, function()
+        local fadeOut = TweenService:Create(notificationFrame, TweenInfo.new(notificationData.FadeOutDuration), {Position = UDim2.new(1, 10, 1, -100), BackgroundTransparency = 1})
+        fadeOut:Play()
+        fadeOut.Completed:Connect(function()
+            notificationFrame:Destroy()
+        end)
+    end)
+end
+
+ReplicatedStorage:WaitForChild("NexusAdmin_Notify").OnClientEvent:Connect(function(title, text, type)
+    showNotification(title, text, type)
 end)
 
 ReplicatedStorage:WaitForChild("NexusAdmin_Message").OnClientEvent:Connect(function(title, text, sender)

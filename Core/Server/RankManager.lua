@@ -195,17 +195,18 @@ end
 
 function RankManager.GetRankData(level)
     local placeOwner = getPlaceOwnerConfig()
-    if level == placeOwner.Level then
+    if level >= placeOwner.Level then
         return {
             Name = placeOwner.Name,
-            Level = placeOwner.Level,
+            Level = level,
             Color = placeOwner.Color,
             Icon = placeOwner.Icon,
             Protected = true
         }
     end
 
-    return CustomRanks[level] or Config.DefaultRanks[level] or Config.DefaultRanks[0]
+    local defaultRanks = Config.DefaultRanks or {}
+    return CustomRanks[level] or defaultRanks[level] or defaultRanks[0] or { Name = "Player", Level = 0 }
 end
 
 function RankManager.GetPermissionData(player)
