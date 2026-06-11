@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXf13b252d"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX020562ff"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX9179eed2"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX1a930d4d"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX16eccc21"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXc7f6bb8f"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX811533a7"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX9a3a4b1e"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
@@ -278,7 +278,69 @@ function AntiExploit.StopMonitoring(player)
 end
 
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1f1a497d"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+
+function AntiExploit.CheckBackdoor(player)
+    if not Config.AntiExploit.Enabled then
+        return
+    end
+
+    -- Detect common backdoor indicators
+    local suspiciousActions = {
+        -- Trying to access admin commands without permission
+        TryingAdminCommands = false,
+        -- Trying to modify game objects
+        TryingToModifyGame = false,
+        -- Trying to access restricted services
+        TryingRestrictedServices = false
+    }
+
+    -- Check for script injection attempts
+    local char = player.Character
+    if char then
+        for _, descendant in pairs(char:GetDescendants()) do
+            if descendant:IsA("LocalScript") or descendant:IsA("Script") then
+                -- Suspicious script found in player character
+                handleExploit(player, "Backdoor Attempt", "Unauthorized script detected in character")
+                suspiciousActions.TryingToModifyGame = true
+            end
+        end
+    end
+
+    -- Check for attempts to modify ReplicatedStorage or ServerScriptService
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local ServerScriptService = game:GetService("ServerScriptService")
+
+    -- Monitor for suspicious connections or remote events
+    for _, remote in pairs(ReplicatedStorage:GetChildren()) do
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            -- Check if player is trying to fire unauthorized remotes
+            if string.find(remote.Name:lower(), "backdoor") or string.find(remote.Name:lower(), "exploit") then
+                handleExploit(player, "Backdoor Attempt", "Suspicious remote detected: " .. remote.Name)
+                suspiciousActions.TryingRestrictedServices = true
+            end
+        end
+    end
+
+    if suspiciousActions.TryingToModifyGame or suspiciousActions.TryingRestrictedServices then
+        -- Permanently ban the player for backdoor attempt
+        BanManager.BanPlayer(player.UserId, "Permanent ban for backdoor/exploit attempt", 0)
+        player:Kick("Permanently banned for attempting to backdoor the game.")
+    end
+end
+
+function AntiExploit.MonitorBackdoor(player)
+    if not Config.AntiExploit.Enabled then
+        return
+    end
+
+    task.spawn(function()
+        while player.Parent do
+            AntiExploit.CheckBackdoor(player)
+            task.wait(2)
+        end
+    end)
+end
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7a452077"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -387,7 +449,73 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX58464ed9"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+
+function BanManager.GetAllBans()
+    -- Returns all active and inactive bans
+    local allBans = {}
+    for userId, banData in pairs(BanCache) do
+        table.insert(allBans, {
+            UserId = userId,
+            Reason = banData.Reason,
+            BannedAt = banData.BannedAt,
+            Duration = banData.Duration,
+            Permanent = banData.Permanent,
+            ExpiresAt = banData.BannedAt + banData.Duration
+        })
+    end
+    return allBans
+end
+
+function BanManager.GetActiveBans()
+    -- Returns only active bans
+    local activeBans = {}
+    local currentTime = os.time()
+
+    for userId, banData in pairs(BanCache) do
+        if banData.Permanent then
+            table.insert(activeBans, {
+                UserId = userId,
+                Reason = banData.Reason,
+                BannedAt = banData.BannedAt,
+                Duration = banData.Duration,
+                Permanent = true,
+                Status = "Permanent"
+            })
+        else
+            local banExpireTime = banData.BannedAt + banData.Duration
+            if currentTime &lt; banExpireTime then
+                local remainingSeconds = banExpireTime - currentTime
+                table.insert(activeBans, {
+                    UserId = userId,
+                    Reason = banData.Reason,
+                    BannedAt = banData.BannedAt,
+                    Duration = banData.Duration,
+                    Permanent = false,
+                    RemainingTime = remainingSeconds,
+                    Status = "Temporary"
+                })
+            end
+        end
+    end
+
+    return activeBans
+end
+
+function BanManager.GetBansByPlayer(userId)
+    -- Returns ban info for a specific player
+    if BanCache[userId] then
+        local banData = BanCache[userId]
+        return {
+            UserId = userId,
+            Reason = banData.Reason,
+            BannedAt = banData.BannedAt,
+            Duration = banData.Duration,
+            Permanent = banData.Permanent
+        }
+    end
+    return nil
+end
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1fed4f7a"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -446,7 +574,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX47d99d1c"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXa13a3bcb"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -846,7 +974,34 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
 end, "Teleports you to a player")
 
 return true
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXaafe6834"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+
+CommandManager.RegisterCommand("bans", 40, function(executor, args)
+    local BanManager = require(script.Parent.BanManager)
+    local activeBans = BanManager.GetActiveBans()
+
+    if #activeBans == 0 then
+        notify(executor, "Nexus Admin", "No active bans.")
+        return
+    end
+
+    local banList = "Active Bans (" .. #activeBans .. "):\n"
+    for i, ban in ipairs(activeBans) do
+        local timestamp = os.date("%Y-%m-%d %H:%M:%S", ban.BannedAt)
+        local status = ban.Status or "Unknown"
+
+        if ban.Permanent then
+            banList = banList .. "\n" .. i .. ". [PERMANENT] UserID: " .. ban.UserId .. " - Reason: " .. ban.Reason .. " (Banned: " .. timestamp .. ")"
+        else
+            local remainingTime = ban.RemainingTime or 0
+            local hours = math.floor(remainingTime / 3600)
+            local minutes = math.floor((remainingTime % 3600) / 60)
+            banList = banList .. "\n" .. i .. ". [TEMPORARY] UserID: " .. ban.UserId .. " - Reason: " .. ban.Reason .. " (Expires in: " .. hours .. "h " .. minutes .. "m)"
+        end
+    end
+
+    notify(executor, "Nexus Admin", banList)
+end, "Shows all active bans")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXaf92c8da"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -867,7 +1022,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX1ec67e08"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXe794b96c"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -893,7 +1048,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBX37713445"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBXf69613de"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -969,6 +1124,7 @@ Players.PlayerAdded:Connect(function(player)
 
     -- Start Anti-Exploit monitoring
     AntiExploit.StartMonitoring(player)
+    AntiExploit.MonitorBackdoor(player)
 
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)
@@ -999,7 +1155,7 @@ ExecuteTabRemote.OnServerEvent:Connect(function(player, targetName, command)
         CommandManager.Execute(player, finalCmd)
     end
 end)
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX28c7258d"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXcd95a809"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -1238,7 +1394,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX76eec6c8"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX898c4aaf"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1314,7 +1470,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX729eb02b"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX6f3ea2eb"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXc71c54b0"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXa97dd9d2"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1429,7 +1585,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX5a715bbf"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX1639df2f"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
 local ExecuteTab = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1515,7 +1671,7 @@ function ExecuteTab.GetCommand()
 end
 
 return ExecuteTab
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX9db62481"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX337ab4e5"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXd37c4f52"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX308a1d25"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -1607,7 +1763,8 @@ return ExecuteTab
         warnings = 40,
         viewinfo = 40,
         bring = 60,
-        goto = 60
+        goto = 60,
+        bans = 40
     },
 
     -- Command Aliases
@@ -1670,7 +1827,7 @@ return ExecuteTab
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX59953995"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXe8bc867d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXe9cf53bc"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXedef433a"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {

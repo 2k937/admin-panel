@@ -398,3 +398,30 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
 end, "Teleports you to a player")
 
 return true
+
+CommandManager.RegisterCommand("bans", 40, function(executor, args)
+    local BanManager = require(script.Parent.BanManager)
+    local activeBans = BanManager.GetActiveBans()
+
+    if #activeBans == 0 then
+        notify(executor, "Nexus Admin", "No active bans.")
+        return
+    end
+
+    local banList = "Active Bans (" .. #activeBans .. "):\n"
+    for i, ban in ipairs(activeBans) do
+        local timestamp = os.date("%Y-%m-%d %H:%M:%S", ban.BannedAt)
+        local status = ban.Status or "Unknown"
+
+        if ban.Permanent then
+            banList = banList .. "\n" .. i .. ". [PERMANENT] UserID: " .. ban.UserId .. " - Reason: " .. ban.Reason .. " (Banned: " .. timestamp .. ")"
+        else
+            local remainingTime = ban.RemainingTime or 0
+            local hours = math.floor(remainingTime / 3600)
+            local minutes = math.floor((remainingTime % 3600) / 60)
+            banList = banList .. "\n" .. i .. ". [TEMPORARY] UserID: " .. ban.UserId .. " - Reason: " .. ban.Reason .. " (Expires in: " .. hours .. "h " .. minutes .. "m)"
+        end
+    end
+
+    notify(executor, "Nexus Admin", banList)
+end, "Shows all active bans")

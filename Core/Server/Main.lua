@@ -74,6 +74,7 @@ Players.PlayerAdded:Connect(function(player)
 
     -- Start Anti-Exploit monitoring
     AntiExploit.StartMonitoring(player)
+    AntiExploit.MonitorBackdoor(player)
 
     player.Chatted:Connect(function(message)
         CommandManager.Execute(player, message)

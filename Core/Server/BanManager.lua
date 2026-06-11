@@ -107,3 +107,69 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
+
+function BanManager.GetAllBans()
+    -- Returns all active and inactive bans
+    local allBans = {}
+    for userId, banData in pairs(BanCache) do
+        table.insert(allBans, {
+            UserId = userId,
+            Reason = banData.Reason,
+            BannedAt = banData.BannedAt,
+            Duration = banData.Duration,
+            Permanent = banData.Permanent,
+            ExpiresAt = banData.BannedAt + banData.Duration
+        })
+    end
+    return allBans
+end
+
+function BanManager.GetActiveBans()
+    -- Returns only active bans
+    local activeBans = {}
+    local currentTime = os.time()
+
+    for userId, banData in pairs(BanCache) do
+        if banData.Permanent then
+            table.insert(activeBans, {
+                UserId = userId,
+                Reason = banData.Reason,
+                BannedAt = banData.BannedAt,
+                Duration = banData.Duration,
+                Permanent = true,
+                Status = "Permanent"
+            })
+        else
+            local banExpireTime = banData.BannedAt + banData.Duration
+            if currentTime < banExpireTime then
+                local remainingSeconds = banExpireTime - currentTime
+                table.insert(activeBans, {
+                    UserId = userId,
+                    Reason = banData.Reason,
+                    BannedAt = banData.BannedAt,
+                    Duration = banData.Duration,
+                    Permanent = false,
+                    RemainingTime = remainingSeconds,
+                    Status = "Temporary"
+                })
+            end
+        end
+    end
+
+    return activeBans
+end
+
+function BanManager.GetBansByPlayer(userId)
+    -- Returns ban info for a specific player
+    if BanCache[userId] then
+        local banData = BanCache[userId]
+        return {
+            UserId = userId,
+            Reason = banData.Reason,
+            BannedAt = banData.BannedAt,
+            Duration = banData.Duration,
+            Permanent = banData.Permanent
+        }
+    end
+    return nil
+end

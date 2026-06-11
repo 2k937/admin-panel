@@ -90,7 +90,8 @@ local Config = {
         warnings = 40,
         viewinfo = 40,
         bring = 60,
-        goto = 60
+        goto = 60,
+        bans = 40
     },
 
     -- Command Aliases
