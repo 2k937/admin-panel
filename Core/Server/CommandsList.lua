@@ -250,8 +250,6 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
     end
 end, "Kills the specified player(s)")
 
-return true
-
 -- Warning System
 CommandManager.RegisterCommand("warn", 40, function(executor, args)
     local WarningManager = require(script.Parent.WarningManager)
@@ -307,3 +305,96 @@ CommandManager.RegisterCommand("warnings", 40, function(executor, args)
         end
     end
 end, "Shows warnings for a player")
+
+-- Player Info & Teleportation
+CommandManager.RegisterCommand("viewinfo", 40, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :viewinfo <player>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local info = "Player Info: " .. target.Name .. "\n"
+        info = info .. "Display Name: " .. target.DisplayName .. "\n"
+        info = info .. "User ID: " .. target.UserId .. "\n"
+        info = info .. "Account Age: " .. math.floor((os.time() - target.AccountAge) / 86400) .. " days\n"
+
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local pos = target.Character.HumanoidRootPart.Position
+            info = info .. "Position: X=" .. math.floor(pos.X) .. ", Y=" .. math.floor(pos.Y) .. ", Z=" .. math.floor(pos.Z) .. "\n"
+        end
+
+        if target.Character and target.Character:FindFirstChild("Humanoid") then
+            info = info .. "Health: " .. math.floor(target.Character.Humanoid.Health) .. " / " .. math.floor(target.Character.Humanoid.MaxHealth)
+        end
+
+        notify(executor, "Nexus Admin", info)
+    end
+end, "Shows player information")
+
+CommandManager.RegisterCommand("bring", 60, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :bring <player|all>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    if not executor.Character or not executor.Character:FindFirstChild("HumanoidRootPart") then
+        notify(executor, "Nexus Admin", "You must have a character to use this command.")
+        return
+    end
+
+    local executorPos = executor.Character.HumanoidRootPart.Position
+
+    for _, target in pairs(targets) do
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            target.Character.HumanoidRootPart.CFrame = CFrame.new(executorPos + Vector3.new(5, 0, 0))
+            notify(target, "Nexus Admin", "You have been brought to " .. executor.DisplayName)
+        end
+    end
+
+    notify(executor, "Nexus Admin", "Brought " .. #targets .. " player(s)")
+end, "Brings player(s) to you")
+
+CommandManager.RegisterCommand("goto", 60, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :goto <player>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    if not executor.Character or not executor.Character:FindFirstChild("HumanoidRootPart") then
+        notify(executor, "Nexus Admin", "You must have a character to use this command.")
+        return
+    end
+
+    local target = targets[1]
+    if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        executor.Character.HumanoidRootPart.CFrame = CFrame.new(target.Character.HumanoidRootPart.Position + Vector3.new(5, 0, 0))
+        notify(executor, "Nexus Admin", "Teleported to " .. target.DisplayName)
+    end
+end, "Teleports you to a player")
+
+return true

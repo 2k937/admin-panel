@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX4a49ce40"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXfa37dfeb"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX010446ee"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX9c4ef1b3"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXe7e359a3"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXed375b50"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXc6dc586c"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX894a4c52"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Players = game:GetService("Players")
 
 function AntiExploit.Init()
@@ -17,7 +17,7 @@ function AntiExploit.Init()
 end
 
 return AntiExploit
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXbaea83e6"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXc0983fae"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -126,7 +126,7 @@ function BanManager.CheckPlayerOnJoin(player)
 end
 
 return BanManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0b082ae9"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX93432bf2"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -185,7 +185,7 @@ function CommandManager.Execute(player, message)
 end
 
 return CommandManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6187fd3c"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8d6a0453"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -437,8 +437,6 @@ CommandManager.RegisterCommand("kill", 20, function(executor, args)
     end
 end, "Kills the specified player(s)")
 
-return true
-
 -- Warning System
 CommandManager.RegisterCommand("warn", 40, function(executor, args)
     local WarningManager = require(script.Parent.WarningManager)
@@ -494,7 +492,100 @@ CommandManager.RegisterCommand("warnings", 40, function(executor, args)
         end
     end
 end, "Shows warnings for a player")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6dc55dbc"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+
+-- Player Info &amp; Teleportation
+CommandManager.RegisterCommand("viewinfo", 40, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :viewinfo &lt;player&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local info = "Player Info: " .. target.Name .. "\n"
+        info = info .. "Display Name: " .. target.DisplayName .. "\n"
+        info = info .. "User ID: " .. target.UserId .. "\n"
+        info = info .. "Account Age: " .. math.floor((os.time() - target.AccountAge) / 86400) .. " days\n"
+
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local pos = target.Character.HumanoidRootPart.Position
+            info = info .. "Position: X=" .. math.floor(pos.X) .. ", Y=" .. math.floor(pos.Y) .. ", Z=" .. math.floor(pos.Z) .. "\n"
+        end
+
+        if target.Character and target.Character:FindFirstChild("Humanoid") then
+            info = info .. "Health: " .. math.floor(target.Character.Humanoid.Health) .. " / " .. math.floor(target.Character.Humanoid.MaxHealth)
+        end
+
+        notify(executor, "Nexus Admin", info)
+    end
+end, "Shows player information")
+
+CommandManager.RegisterCommand("bring", 60, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :bring &lt;player|all&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    if not executor.Character or not executor.Character:FindFirstChild("HumanoidRootPart") then
+        notify(executor, "Nexus Admin", "You must have a character to use this command.")
+        return
+    end
+
+    local executorPos = executor.Character.HumanoidRootPart.Position
+
+    for _, target in pairs(targets) do
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            target.Character.HumanoidRootPart.CFrame = CFrame.new(executorPos + Vector3.new(5, 0, 0))
+            notify(target, "Nexus Admin", "You have been brought to " .. executor.DisplayName)
+        end
+    end
+
+    notify(executor, "Nexus Admin", "Brought " .. #targets .. " player(s)")
+end, "Brings player(s) to you")
+
+CommandManager.RegisterCommand("goto", 60, function(executor, args)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :goto &lt;player&gt;")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    if not executor.Character or not executor.Character:FindFirstChild("HumanoidRootPart") then
+        notify(executor, "Nexus Admin", "You must have a character to use this command.")
+        return
+    end
+
+    local target = targets[1]
+    if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        executor.Character.HumanoidRootPart.CFrame = CFrame.new(target.Character.HumanoidRootPart.Position + Vector3.new(5, 0, 0))
+        notify(executor, "Nexus Admin", "Teleported to " .. target.DisplayName)
+    end
+end, "Teleports you to a player")
+
+return true
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX7e9157c7"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -515,7 +606,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8d790a68"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX6a1af094"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -541,7 +632,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBXc5f92e4c"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX89d00805"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -626,7 +717,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX864e3951"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX67646e04"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -865,7 +956,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9ee3b1c2"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX89c23f07"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -941,7 +1032,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXe6e7e1c7"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXc5f0f074"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX3e11165a"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX73542ec2"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1056,7 +1147,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX7629cbc1"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXdf06feb8"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXd065bd12"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX3d80bca4"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -1145,7 +1236,10 @@ end)
         rank = 80,
         unrank = 80,
         warn = 40,
-        warnings = 40
+        warnings = 40,
+        viewinfo = 40,
+        bring = 60,
+        goto = 60
     },
 
     -- Command Aliases
@@ -1155,12 +1249,14 @@ end)
         m = "mute",
         tp = "teleport",
         h = "heal",
-        sh = "shutdown"
+        sh = "shutdown",
+        to = "goto",
+        info = "viewinfo"
     }
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX788eb1ff"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXc6f73f0d"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBXcee32c70"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX7e9db824"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- This is a representation of the UI structure.
 -- In Roblox, this would be a ScreenGui with various Frames.
 
 local UI = {

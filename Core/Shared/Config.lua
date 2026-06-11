@@ -87,7 +87,10 @@ local Config = {
         rank = 80,
         unrank = 80,
         warn = 40,
-        warnings = 40
+        warnings = 40,
+        viewinfo = 40,
+        bring = 60,
+        goto = 60
     },
 
     -- Command Aliases
@@ -97,7 +100,9 @@ local Config = {
         m = "mute",
         tp = "teleport",
         h = "heal",
-        sh = "shutdown"
+        sh = "shutdown",
+        to = "goto",
+        info = "viewinfo"
     }
 }
 
