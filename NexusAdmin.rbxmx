@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX16b2b591"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX696406ea"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX679a84df"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX4b6e97e0"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBXe37e24d2"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX8bcf54e1"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBX1ca933bc"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBX175706e5"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
@@ -340,7 +340,7 @@ function AntiExploit.MonitorBackdoor(player)
         end
     end)
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX53e98473"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX876cd569"><Properties><string name="Name">BanManager</string><ProtectedString name="Source">local BanManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -515,7 +515,7 @@ function BanManager.GetBansByPlayer(userId)
     end
     return nil
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX41d8ae3d"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXb22d1926"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local RankManager = require(script.Parent.RankManager)
 
@@ -580,8 +580,6 @@ function CommandManager.Execute(player, message)
         end
     end
 end
-
-return CommandManager
 
 function CommandManager.GetAllCommands()
     -- Returns all registered commands with their metadata
@@ -662,7 +660,9 @@ function CommandManager.GetAccessibleCommands(playerLevel)
 
     return accessible
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11c2b67a"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+
+return CommandManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXcbc9ad92"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -1156,7 +1156,7 @@ CommandManager.RegisterCommand("untag", 80, function(executor, args)
         notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
     end
 end, "Remove a custom tag from a player (Level 80+ only)")
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2fcf93f5"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0aa55eec"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
 local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
 
 local DataStore = {}
@@ -1177,7 +1177,7 @@ function DataStore.Get(key)
 end
 
 return DataStore
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX360c6779"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX2a5199e3"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
 local DataStore = require(script.Parent.DataStore)
 
 local Logs = {
@@ -1203,7 +1203,7 @@ function LogManager.GetLogs(type)
 end
 
 return LogManager
-</ProtectedString></Properties></Item><Item class="Script" referent="RBX9a73e89a"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX2200c087"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CommandManager = require(script.Parent.CommandManager)
@@ -1331,7 +1331,7 @@ end
 GetCommandInfo.OnServerInvoke = function(player, commandName)
     return CommandManager.GetCommandInfo(commandName)
 end
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX8aa344e3"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXec47a6a5"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local GroupService = game:GetService("GroupService")
 local Players = game:GetService("Players")
@@ -1571,7 +1571,7 @@ function RankManager.GetPermissionData(player)
 end
 
 return RankManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX983571c1"><Properties><string name="Name">TagManager</string><ProtectedString name="Source">local TagManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXc509de53"><Properties><string name="Name">TagManager</string><ProtectedString name="Source">local TagManager = {}
 local Config = require(script.Parent.Parent.Shared.Config)
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -1696,7 +1696,7 @@ function TagManager.LoadAllTags()
 end
 
 return TagManager
-</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXd50c98af"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12bb486d"><Properties><string name="Name">WarningManager</string><ProtectedString name="Source">local WarningManager = {}
 local DataStore = require(script.Parent.DataStore)
 local Players = game:GetService("Players")
 
@@ -1772,7 +1772,7 @@ function WarningManager.NotifyPlayerWarned(player, moderatorName, reason, warnin
 end
 
 return WarningManager
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0533c7bd"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX0714810e"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX93229e82"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX3ce4887e"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -1887,7 +1887,7 @@ end)
 ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
     -- Toggle noclip logic
 end)
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX4f519a9f"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX05d73ca0"><Properties><string name="Name">ExecuteTab</string><ProtectedString name="Source">-- ExecuteTab.lua - Handles the Execute tab UI and command execution
 local ExecuteTab = {}
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1973,7 +1973,7 @@ function ExecuteTab.GetCommand()
 end
 
 return ExecuteTab
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBXdd3d034f"><Properties><string name="Name">SearchTab</string><ProtectedString name="Source">local SearchTab = {}
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX23badec2"><Properties><string name="Name">SearchTab</string><ProtectedString name="Source">local SearchTab = {}
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 function SearchTab.GetAccessibleCommands(playerLevel)
@@ -2056,7 +2056,7 @@ function SearchTab.GetCommandDetails(commandName)
 end
 
 return SearchTab
-</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX505c8d3f"><Properties><string name="Name">TagUI</string><ProtectedString name="Source">local TagUI = {}
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBXe400a52a"><Properties><string name="Name">TagUI</string><ProtectedString name="Source">local TagUI = {}
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -2155,7 +2155,7 @@ function TagUI.UpdateAllPlayerTags(allTags)
 end
 
 return TagUI
-</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX784b5045"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXcfd296ff"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX32bd997e"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX2ef7b4fb"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
@@ -2303,7 +2303,7 @@ return TagUI
 }
 
 return Config
-</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX2b431314"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBXc56fd41e"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX2c3c2c6c"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX02dcb87b"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">-- Modern UI Components for Nexus Admin
 local UI = {}
 
 -- Modern Color Scheme

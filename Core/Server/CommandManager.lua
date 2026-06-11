@@ -64,8 +64,6 @@ function CommandManager.Execute(player, message)
     end
 end
 
-return CommandManager
-
 function CommandManager.GetAllCommands()
     -- Returns all registered commands with their metadata
     local commandList = {}
@@ -145,3 +143,5 @@ function CommandManager.GetAccessibleCommands(playerLevel)
 
     return accessible
 end
+
+return CommandManager
