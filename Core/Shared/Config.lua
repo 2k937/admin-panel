@@ -2,8 +2,9 @@ local Config = {
     -- Default Settings
     Prefix = ":",
     SystemName = "Nexus Admin",
-    ThemeColor = Color3.fromRGB(45, 45, 45),
-    AccentColor = Color3.fromRGB(0, 170, 255),
+    ThemeColor = Color3.fromRGB(25, 25, 25), -- Deep Black/Gray
+    AccentColor = Color3.fromRGB(255, 255, 255), -- Pure White
+    SecondaryColor = Color3.fromRGB(35, 35, 35), -- Slightly lighter gray for sidebar
     
     -- Default Ranks
     DefaultRanks = {

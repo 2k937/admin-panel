@@ -38,11 +38,25 @@ function CommandManager.Execute(player, message)
                 Args = args
             })
             
-            local success, err = pcall(function()
-                command.Callback(player, args)
+            local success, result = pcall(function()
+                return command.Callback(player, args)
             end)
-            if not success then
-                warn("Error executing command " .. cmdName .. ": " .. err)
+            
+            if success then
+                if result == false then
+                    -- Command failed internally (e.g., player not found)
+                    LogManager.AddLog("Errors", {User = player.Name, Command = cmdName, Error = "Target not found"})
+                else
+                    -- Command succeeded
+                    -- UI Notification for success is usually handled in the command itself for specific targeting
+                end
+            else
+                -- Execution error
+                local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
+                if Remote then
+                    Remote:FireClient(player, "Command Error", "An error occurred: " .. tostring(result))
+                end
+                warn("Error executing command " .. cmdName .. ": " .. result)
             end
         else
             -- Notify insufficient permissions

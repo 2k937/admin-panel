@@ -1,2 +1,669 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX4baf96d3"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBX96829fdf"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXf2869cc8"><Properties><string name="Name">Server</string></Properties></Item><Item class="Folder" referent="RBX3c12e4eb"><Properties><string name="Name">Client</string></Properties></Item><Item class="Folder" referent="RBXb060a17b"><Properties><string name="Name">Shared</string></Properties></Item></Item><Item class="Folder" referent="RBX9fd24a58"><Properties><string name="Name">UI</string></Properties></Item></Item></roblox>
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Folder" referent="RBX01d13867"><Properties><string name="Name">NexusAdmin</string></Properties><Item class="Folder" referent="RBXb486c02d"><Properties><string name="Name">Core</string></Properties><Item class="Folder" referent="RBXd05be70c"><Properties><string name="Name">Server</string></Properties><Item class="ModuleScript" referent="RBXfc354b6f"><Properties><string name="Name">RankManager</string><ProtectedString name="Source">local RankManager = {}
+local Config = require(script.Parent.Parent.Shared.Config)
+
+local PlayerRanks = {} -- [UserId] = RankLevel
+local CustomRanks = {} -- [Level] = RankData
+
+function RankManager.Init()
+    -- Load from DataStore in real implementation
+end
+
+function RankManager.GetPlayerRank(player)
+    if player.UserId == game.CreatorId then return 255 end -- Highest possible internal level
+    return PlayerRanks[player.UserId] or 0
+end
+
+function RankManager.SetPlayerRank(userId, level)
+    PlayerRanks[userId] = level
+    local DataStore = require(script.Parent.DataStore)
+    DataStore.Save("Rank_" .. userId, level)
+    
+    local Players = game:GetService("Players")
+    local target = Players:GetPlayerByUserId(userId)
+    if target then
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local rankData = RankManager.GetRankData(level)
+        ReplicatedStorage:WaitForChild("NexusAdmin_Notify"):FireClient(target, "Nexus Admin", "You have been ranked to " .. rankData.Name)
+    end
+end
+
+function RankManager.LoadPlayerRank(player)
+    local DataStore = require(script.Parent.DataStore)
+    local savedLevel, success = DataStore.Get("Rank_" .. player.UserId)
+    if success and savedLevel then
+        PlayerRanks[player.UserId] = savedLevel
+        return savedLevel
+    end
+    return 0
+end
+
+function RankManager.CreateCustomRank(name, level, color, icon)
+    CustomRanks[level] = {
+        Name = name,
+        Level = level,
+        Color = color,
+        Icon = icon
+    }
+end
+
+function RankManager.GetRankData(level)
+    return CustomRanks[level] or Config.DefaultRanks[level]
+end
+
+return RankManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXd28e0212"><Properties><string name="Name">CommandManager</string><ProtectedString name="Source">local CommandManager = {}
+local Config = require(script.Parent.Parent.Shared.Config)
+local RankManager = require(script.Parent.RankManager)
+
+local Commands = {}
+
+function CommandManager.RegisterCommand(name, level, callback, description)
+    Commands[name] = {
+        Level = level,
+        Callback = callback,
+        Description = description,
+        Enabled = true
+    }
+end
+
+function CommandManager.Execute(player, message)
+    if not message:sub(1, 1) == Config.Prefix then return end
+    
+    local args = message:sub(2):split(" ")
+    local cmdName = args[1]:lower()
+    table.remove(args, 1)
+    
+    -- Check Aliases
+    if Config.Aliases[cmdName] then
+        cmdName = Config.Aliases[cmdName]
+    end
+    
+    local command = Commands[cmdName]
+    if command and command.Enabled then
+        local playerLevel = RankManager.GetPlayerRank(player)
+        local requiredLevel = Config.CommandLevels[cmdName] or command.Level
+        
+        if playerLevel &gt;= requiredLevel then
+            local LogManager = require(script.Parent.LogManager)
+            LogManager.AddLog("Commands", {
+                User = player.Name,
+                Command = cmdName,
+                Args = args
+            })
+            
+            local success, result = pcall(function()
+                return command.Callback(player, args)
+            end)
+            
+            if success then
+                if result == false then
+                    -- Command failed internally (e.g., player not found)
+                    LogManager.AddLog("Errors", {User = player.Name, Command = cmdName, Error = "Target not found"})
+                else
+                    -- Command succeeded
+                    -- UI Notification for success is usually handled in the command itself for specific targeting
+                end
+            else
+                -- Execution error
+                local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
+                if Remote then
+                    Remote:FireClient(player, "Command Error", "An error occurred: " .. tostring(result))
+                end
+                warn("Error executing command " .. cmdName .. ": " .. result)
+            end
+        else
+            -- Notify insufficient permissions
+        end
+    end
+end
+
+return CommandManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBXf0a7514b"><Properties><string name="Name">DataStore</string><ProtectedString name="Source">local DataStoreService = game:GetService("DataStoreService")
+local NexusStore = DataStoreService:GetDataStore("NexusAdmin_Data_v1")
+
+local DataStore = {}
+
+function DataStore.Save(key, data)
+    local success, err = pcall(function()
+        NexusStore:SetAsync(key, data)
+    end)
+    return success, err
+end
+
+function DataStore.Get(key)
+    local data
+    local success, err = pcall(function()
+        data = NexusStore:GetAsync(key)
+    end)
+    return data, success, err
+end
+
+return DataStore
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX425e0a80"><Properties><string name="Name">CommandsList</string><ProtectedString name="Source">local CommandManager = require(script.Parent.CommandManager)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local function getPlayers(str, executor)
+    if not str then return {} end
+    if str == "all" then return Players:GetPlayers() end
+    if str == "others" then
+        local others = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= executor then table.insert(others, p) end
+        end
+        return others
+    end
+    if str == "me" then return {executor} end
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1, #str) == str:lower() or p.DisplayName:lower():sub(1, #str) == str:lower() then
+            return {p}
+        end
+    end
+    return {}
+end
+
+local function notify(player, title, text)
+    local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
+    if Remote then Remote:FireClient(player, title, text) end
+end
+
+-- Kick/Ban
+CommandManager.RegisterCommand("kick", 40, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    local reason = table.concat(args, " ", 2) or "Kicked by an admin."
+    for _, target in pairs(targets) do
+        target:Kick(reason)
+    end
+end, "Kicks the specified player(s)")
+
+CommandManager.RegisterCommand("ban", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    local reason = table.concat(args, " ", 2) or "Banned by an admin."
+    for _, target in pairs(targets) do
+        target:Kick("Banned: " .. reason)
+        -- Save to Ban DataStore
+    end
+end, "Bans the specified player(s)")
+
+-- Moderation
+CommandManager.RegisterCommand("mute", 40, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        -- Logic to disable chat
+    end
+end, "Mutes player")
+
+CommandManager.RegisterCommand("unmute", 40, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        -- Logic to enable chat
+    end
+end, "Unmutes player")
+
+-- Movement/Stats
+CommandManager.RegisterCommand("fly", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        ReplicatedStorage:WaitForChild("NexusAdmin_Fly"):FireClient(target, true)
+    end
+end, "Enables flight")
+
+CommandManager.RegisterCommand("unfly", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        ReplicatedStorage:WaitForChild("NexusAdmin_Fly"):FireClient(target, false)
+    end
+end, "Disables flight")
+
+CommandManager.RegisterCommand("noclip", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        ReplicatedStorage:WaitForChild("NexusAdmin_NoClip"):FireClient(target, true)
+    end
+end, "Enables noclip")
+
+CommandManager.RegisterCommand("clip", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        ReplicatedStorage:WaitForChild("NexusAdmin_NoClip"):FireClient(target, false)
+    end
+end, "Disables noclip")
+
+-- Communication
+CommandManager.RegisterCommand("announce", 60, function(executor, args)
+    local msg = table.concat(args, " ")
+    ReplicatedStorage:WaitForChild("NexusAdmin_Message"):FireAllClients("Announcement", msg, executor.Name)
+end, "Global announcement")
+
+CommandManager.RegisterCommand("message", 60, function(executor, args)
+    local msg = table.concat(args, " ")
+    ReplicatedStorage:WaitForChild("NexusAdmin_Message"):FireAllClients("Message", msg, executor.Name)
+end, "Global message")
+
+CommandManager.RegisterCommand("pm", 40, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    local msg = table.concat(args, " ", 2)
+    for _, target in pairs(targets) do
+        ReplicatedStorage:WaitForChild("NexusAdmin_PM"):FireClient(target, msg, executor.Name)
+    end
+end, "Private message")
+
+-- Fun/Misc
+CommandManager.RegisterCommand("explode", 60, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    for _, target in pairs(targets) do
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local exp = Instance.new("Explosion")
+            exp.Position = target.Character.HumanoidRootPart.Position
+            exp.Parent = game.Workspace
+        end
+    end
+end, "Explodes player")
+
+-- Add all other commands similarly...
+return true
+
+-- Kill Command
+CommandManager.RegisterCommand("kill", 20, function(executor, args)
+    local targets = getPlayers(args[1], executor)
+    if #targets == 0 then
+        notify(executor, "Error", "Player not found.", "Error")
+        return false
+    end
+    
+    for _, target in pairs(targets) do
+        if target.Character and target.Character:FindFirstChild("Humanoid") then
+            target.Character.Humanoid.Health = 0
+        end
+    end
+    
+    if #targets == 1 then
+        notify(executor, "Success", "Killed " .. targets[1].DisplayName, "Success")
+    else
+        notify(executor, "Success", "Killed " .. #targets .. " players.", "Success")
+    end
+end, "Kills the specified player(s)")
+</ProtectedString></Properties></Item><Item class="Script" referent="RBX333c496d"><Properties><string name="Name">Main</string><ProtectedString name="Source">local Players = game:GetService("Players")
+local CommandManager = require(script.Parent.CommandManager)
+local RankManager = require(script.Parent.RankManager)
+require(script.Parent.CommandsList)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GetPermission = Instance.new("RemoteFunction")
+GetPermission.Name = "NexusAdmin_GetPermission"
+GetPermission.Parent = ReplicatedStorage
+
+local ExecuteCommand = Instance.new("RemoteEvent")
+ExecuteCommand.Name = "NexusAdmin_ExecuteCommand"
+ExecuteCommand.Parent = ReplicatedStorage
+
+local MessageEvent = Instance.new("RemoteEvent")
+MessageEvent.Name = "NexusAdmin_Message"
+MessageEvent.Parent = ReplicatedStorage
+
+local PMEvent = Instance.new("RemoteEvent")
+PMEvent.Name = "NexusAdmin_PM"
+PMEvent.Parent = ReplicatedStorage
+
+local FlyEvent = Instance.new("RemoteEvent")
+FlyEvent.Name = "NexusAdmin_Fly"
+FlyEvent.Parent = ReplicatedStorage
+
+local NoClipEvent = Instance.new("RemoteEvent")
+NoClipEvent.Name = "NexusAdmin_NoClip"
+NoClipEvent.Parent = ReplicatedStorage
+
+GetPermission.OnServerInvoke = function(player)
+    local level = RankManager.GetPlayerRank(player)
+    return level &gt;= 20 -- Minimum level to open panel (Helper)
+end
+
+ExecuteCommand.OnServerEvent:Connect(function(player, commandString)
+    -- This allows executing commands from the UI without the prefix
+    local level = RankManager.GetPlayerRank(player)
+    if level &gt;= 20 then
+        -- Add prefix if missing to use the same logic
+        local finalCmd = commandString
+        if commandString:sub(1, 1) ~= Config.Prefix then
+            finalCmd = Config.Prefix .. commandString
+        end
+        CommandManager.Execute(player, finalCmd)
+    end
+end)
+
+local function notifyPlayer(player, title, text)
+    local Remote = ReplicatedStorage:FindFirstChild("NexusAdmin_Notify")
+    if not Remote then
+        Remote = Instance.new("RemoteEvent")
+        Remote.Name = "NexusAdmin_Notify"
+        Remote.Parent = ReplicatedStorage
+    end
+    Remote:FireClient(player, title, text)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(message)
+        CommandManager.Execute(player, message)
+    end)
+    
+    -- Load rank
+    local level = RankManager.LoadPlayerRank(player)
+    if player.UserId == game.CreatorId then level = 255 end
+    local rankData = RankManager.GetRankData(level)
+    
+    if level &gt;= 20 then
+        -- Welcome notification for admins
+        task.wait(2) -- Wait for client to load
+        notifyPlayer(player, "Welcome, " .. player.DisplayName, "Rank: " .. rankData.Name .. " (Level " .. level .. ")")
+    end
+end)
+
+print("Nexus Admin Initialized Successfully")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX81c94150"><Properties><string name="Name">LogManager</string><ProtectedString name="Source">local LogManager = {}
+local DataStore = require(script.Parent.DataStore)
+
+local Logs = {
+    Commands = {},
+    Joins = {},
+    Punishments = {}
+}
+
+function LogManager.AddLog(type, data)
+    table.insert(Logs[type], {
+        Time = os.time(),
+        Data = data
+    })
+    
+    -- Keep only last 100 logs in memory
+    if #Logs[type] &gt; 100 then
+        table.remove(Logs[type], 1)
+    end
+end
+
+function LogManager.GetLogs(type)
+    return Logs[type]
+end
+
+return LogManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX256f91df"><Properties><string name="Name">AntiExploit</string><ProtectedString name="Source">local AntiExploit = {}
+local Players = game:GetService("Players")
+
+function AntiExploit.Init()
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(character)
+            -- Simple speed hack check
+            local humanoid = character:WaitForChild("Humanoid")
+            humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                if humanoid.WalkSpeed &gt; 100 then
+                    -- Flag or reset
+                end
+            end)
+        end)
+    end)
+end
+
+return AntiExploit
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXf45542ea"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBXfaab444a"><Properties><string name="Name">ClientMain</string><ProtectedString name="Source">local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- UI Keybind (default ';')
+local function togglePanel()
+    -- Request permission level from server
+    local success, canOpen = pcall(function()
+        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 1):InvokeServer()
+    end)
+    
+    if success and canOpen then
+        -- Toggle Admin Panel Visibility
+        -- (Actual UI visibility logic here)
+    end
+end
+
+-- Initialize Admin Button for Mobile/PC accessibility
+task.spawn(function()
+    local success, canOpen = pcall(function()
+        return ReplicatedStorage:WaitForChild("NexusAdmin_GetPermission", 5):InvokeServer()
+    end)
+    
+    if success and canOpen then
+        local MainUI = require(script.Parent.Parent.UI.MainUI)
+        MainUI.CreateAdminButton() -- Create the floating toggle button
+    end
+end)
+    -- If not canOpen, do absolutely nothing (no notifications, no prints)
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Semicolon then
+        togglePanel()
+    end
+end)
+
+-- Command Suggestions logic
+-- Flight logic
+-- Notifications logic
+ReplicatedStorage:WaitForChild("NexusAdmin_Notify").OnClientEvent:Connect(function(title, text)
+    -- Logic to show a modern notification on the screen
+    print("NOTIFICATION: [" .. title .. "] " .. text)
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_Message").OnClientEvent:Connect(function(title, text, sender)
+    -- Show global message UI
+    print("GLOBAL MESSAGE from " .. sender .. ": [" .. title .. "] " .. text)
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_PM").OnClientEvent:Connect(function(text, sender)
+    -- Show private message UI
+    print("PM from " .. sender .. ": " .. text)
+end)
+
+local flying = false
+local speed = 50
+local bv, bg
+
+ReplicatedStorage:WaitForChild("NexusAdmin_Fly").OnClientEvent:Connect(function(enabled)
+    flying = enabled
+    local char = Player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    if flying then
+        bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = hrp
+        
+        bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bg.CFrame = hrp.CFrame
+        bg.Parent = hrp
+        
+        task.spawn(function()
+            while flying do
+                local cam = workspace.CurrentCamera
+                local moveDir = char.Humanoid.MoveDirection
+                bv.Velocity = (cam.CFrame:VectorToWorldSpace(Vector3.new(moveDir.X, 0, moveDir.Z)) * speed) + Vector3.new(0, (UserInputService:IsKeyDown(Enum.KeyCode.Space) and speed or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and speed or 0), 0)
+                bg.CFrame = cam.CFrame
+                task.wait()
+            end
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end)
+    else
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+    end
+end)
+
+ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
+    -- Toggle noclip logic
+end)
+</ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBXb17c2241"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBXf312e438"><Properties><string name="Name">Config</string><ProtectedString name="Source">local Config = {
+    -- Default Settings
+    Prefix = ":",
+    SystemName = "Nexus Admin",
+    ThemeColor = Color3.fromRGB(25, 25, 25), -- Deep Black/Gray
+    AccentColor = Color3.fromRGB(255, 255, 255), -- Pure White
+    SecondaryColor = Color3.fromRGB(35, 35, 35), -- Slightly lighter gray for sidebar
+    
+    -- Default Ranks
+    DefaultRanks = {
+        [100] = {Name = "Creator", Level = 100, Color = Color3.fromRGB(255, 0, 0), Icon = "rbxassetid://0"},
+        [80] = {Name = "Head Admin", Level = 80, Color = Color3.fromRGB(255, 120, 0), Icon = "rbxassetid://0"},
+        [60] = {Name = "Admin", Level = 60, Color = Color3.fromRGB(255, 255, 0), Icon = "rbxassetid://0"},
+        [40] = {Name = "Moderator", Level = 40, Color = Color3.fromRGB(0, 255, 0), Icon = "rbxassetid://0"},
+        [20] = {Name = "Helper", Level = 20, Color = Color3.fromRGB(0, 255, 255), Icon = "rbxassetid://0"},
+        [0] = {Name = "Player", Level = 0, Color = Color3.fromRGB(255, 255, 255), Icon = "rbxassetid://0"}
+    },
+    
+    -- Command Permission Overrides (Level)
+    CommandLevels = {
+        kick = 40,
+        ban = 60,
+        unban = 60,
+        warn = 20,
+        mute = 40,
+        unmute = 40,
+        jail = 40,
+        unjail = 40,
+        freeze = 40,
+        unfreeze = 40,
+        fly = 60,
+        unfly = 60,
+        noclip = 60,
+        clip = 60,
+        speed = 40,
+        jump = 40,
+        heal = 40,
+        damage = 60,
+        god = 60,
+        ungod = 60,
+        bring = 40,
+        goto = 40,
+        teleport = 40,
+        respawn = 40,
+        explode = 60,
+        sparkles = 40,
+        fire = 40,
+        smoke = 40,
+        invisible = 60,
+        visible = 60,
+        size = 60,
+        fling = 60,
+        sit = 40,
+        unsit = 40,
+        lock = 80,
+        unlock = 80,
+        shutdown = 100,
+        announce = 60,
+        message = 60,
+        pm = 40,
+        view = 40,
+        unview = 40,
+        kill = 20
+    },
+    
+    -- Command Aliases
+    Aliases = {
+        k = "kick",
+        b = "ban",
+        m = "mute",
+        tp = "teleport",
+        h = "heal",
+        sh = "shutdown"
+    }
+}
+
+return Config
+</ProtectedString></Properties></Item></Item></Item><Item class="Folder" referent="RBX638d7832"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX21287884"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">local Config = {
+    ThemeColor = Color3.fromRGB(25, 25, 25),
+    SecondaryColor = Color3.fromRGB(35, 35, 35),
+    AccentColor = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.GothamMedium
+}
+
+local UI = {}
+
+function UI.CreateMainFrame()
+    -- Main Container
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "NexusAdmin_Panel"
+    
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 700, 0, 450)
+    MainFrame.Position = UDim2.new(0.5, -350, 0.5, -225)
+    MainFrame.BackgroundColor3 = Config.ThemeColor
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Parent = ScreenGui
+    
+    -- UICorner for modern rounded look
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = MainFrame
+    
+    -- Sidebar
+    local Sidebar = Instance.new("Frame")
+    Sidebar.Size = UDim2.new(0, 180, 1, 0)
+    Sidebar.BackgroundColor3 = Config.SecondaryColor
+    Sidebar.BorderSizePixel = 0
+    Sidebar.Parent = MainFrame
+    
+    local SidebarCorner = Instance.new("UICorner")
+    SidebarCorner.CornerRadius = UDim.new(0, 6)
+    SidebarCorner.Parent = Sidebar
+    
+    -- Logo / Title
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 60)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Nexus Admin"
+    Title.TextColor3 = Config.AccentColor
+    Title.TextSize = 20
+    Title.Font = Enum.Font.GothamBold
+    Title.Parent = Sidebar
+    
+    -- Content Area
+    local Content = Instance.new("Frame")
+    Content.Size = UDim2.new(1, -180, 1, 0)
+    Content.Position = UDim2.new(0, 180, 0, 0)
+    Content.BackgroundTransparency = 1
+    Content.Parent = MainFrame
+    
+    return ScreenGui
+end
+
+function UI.CreateAdminButton()
+    -- Modern floating toggle button
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "NexusAdmin_Toggle"
+    
+    local Button = Instance.new("ImageButton")
+    Button.Size = UDim2.new(0, 50, 0, 50)
+    Button.Position = UDim2.new(1, -70, 1, -70)
+    Button.BackgroundColor3 = Config.ThemeColor
+    Button.Image = "rbxassetid://0" -- Modern Icon
+    Button.BorderSizePixel = 0
+    Button.Parent = ScreenGui
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(1, 0) -- Circular
+    Corner.Parent = Button
+    
+    return ScreenGui
+end
+
+function UI.Notify(title, text, type)
+    -- Modern Notification
+    -- Success: White accent
+    -- Error: Subtle red or gray
+end
+
+return UI
+</ProtectedString></Properties></Item></Item></Item></roblox>

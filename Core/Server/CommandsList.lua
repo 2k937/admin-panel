@@ -126,9 +126,20 @@ return true
 -- Kill Command
 CommandManager.RegisterCommand("kill", 20, function(executor, args)
     local targets = getPlayers(args[1], executor)
+    if #targets == 0 then
+        notify(executor, "Error", "Player not found.", "Error")
+        return false
+    end
+    
     for _, target in pairs(targets) do
         if target.Character and target.Character:FindFirstChild("Humanoid") then
             target.Character.Humanoid.Health = 0
         end
+    end
+    
+    if #targets == 1 then
+        notify(executor, "Success", "Killed " .. targets[1].DisplayName, "Success")
+    else
+        notify(executor, "Success", "Killed " .. #targets .. " players.", "Success")
     end
 end, "Kills the specified player(s)")
