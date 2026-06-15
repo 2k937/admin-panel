@@ -402,7 +402,7 @@ CommandManager.RegisterCommand("bring", getLevel("bring", 60), function(executor
     local targetName = args[1]
 
     if not targetName then
-        notify(executor, "Nexus Admin", "Usage: :bring <player|all>")
+        notify(executor, "Nexus Admin", "Usage: :bring <player>")
         return
     end
 
@@ -417,12 +417,9 @@ CommandManager.RegisterCommand("bring", getLevel("bring", 60), function(executor
         return
     end
 
-    local executorPos = executor.Character.HumanoidRootPart.Position
-
     for _, target in pairs(targets) do
         if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            target.Character.HumanoidRootPart.CFrame = CFrame.new(executorPos + Vector3.new(5, 0, 0))
-            notify(target, "Nexus Admin", "You have been brought to " .. executor.DisplayName)
+            target.Character.HumanoidRootPart.CFrame = executor.Character.HumanoidRootPart.CFrame + executor.Character.HumanoidRootPart.CFrame.LookVector * 5
         end
     end
 
@@ -590,6 +587,6 @@ CommandManager.RegisterCommand("untag", getLevel("untag", 80), function(executor
         TagManager.RemovePlayerTag(target.UserId)
         notify(executor, "Nexus Admin", "Removed tag from " .. target.Name)
     end
-end, "Remove a custom tag from a player (Level 80+ only)")
+end, "Removes a custom tag from a player (Level 80+ only)")
 
 return true

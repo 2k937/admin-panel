@@ -15,13 +15,14 @@ local function isBanned(userId)
     end
 
     local currentTime = os.time()
-    local banExpireTime = banData.BannedAt + banData.Duration
+    local banExpireTime = (banData.BannedAt or 0) + (banData.Duration or 0)
 
     if currentTime < banExpireTime then
         return true
     else
         BanCache[userId] = nil
-        DataStore.Delete("Ban_" .. userId)
+        local key = banData.IsGlobal and "GlobalBan_" .. userId or "Ban_" .. userId
+        DataStore.Delete(key)
         return false
     end
 end

@@ -218,3 +218,22 @@ ReplicatedStorage:WaitForChild("NexusAdmin_Fly").OnClientEvent:Connect(function(
         if bg then bg:Destroy() end
     end
 end)
+
+local noclip = false
+ReplicatedStorage:WaitForChild("NexusAdmin_NoClip").OnClientEvent:Connect(function(enabled)
+    noclip = enabled
+    if noclip then
+        task.spawn(function()
+            while noclip do
+                if Player.Character then
+                    for _, part in pairs(Player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+                task.wait()
+            end
+        end)
+    end
+end)
