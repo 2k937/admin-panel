@@ -26,22 +26,24 @@ local function isBanned(userId)
     end
 end
 
-function BanManager.BanPlayer(userId, reason, duration)
+function BanManager.BanPlayer(userId, reason, duration, isGlobal)
     -- duration: nil or 0 = permanent, number = seconds
     local isPermanent = (duration == nil or duration == 0)
     local banData = {
         Reason = reason or "Banned by an admin.",
         BannedAt = os.time(),
         Duration = duration or 0,
-        Permanent = isPermanent
+        Permanent = isPermanent,
+        IsGlobal = isGlobal == true
     }
 
+    local key = isGlobal and "GlobalBan_" .. userId or "Ban_" .. userId
     BanCache[userId] = banData
-    DataStore.Save("Ban_" .. userId, banData)
+    DataStore.Save(key, banData)
 
     local player = Players:GetPlayerByUserId(userId)
     if player then
-        local kickMessage = "Banned: " .. reason
+        local kickMessage = (isGlobal and "[GLOBAL BAN] " or "[BAN] ") .. reason
         if not isPermanent then
             local durationMinutes = math.floor(duration / 60)
             kickMessage = kickMessage .. " (Duration: " .. durationMinutes .. " minutes)"
@@ -52,9 +54,12 @@ function BanManager.BanPlayer(userId, reason, duration)
     return true
 end
 
-function BanManager.UnbanPlayer(userId)
+function BanManager.UnbanPlayer(userId, isGlobal)
     BanCache[userId] = nil
     DataStore.Delete("Ban_" .. userId)
+    if isGlobal ~= false then
+        DataStore.Delete("GlobalBan_" .. userId)
+    end
     return true
 end
 
@@ -87,19 +92,38 @@ function BanManager.LoadBans()
 end
 
 function BanManager.CheckPlayerOnJoin(player)
-    if isBanned(player.UserId) then
-        local banInfo = BanManager.GetBanInfo(player.UserId)
-        local kickMessage = "Banned: " .. (banInfo.Reason or "No reason provided.")
+    -- Check local cache first
+    local banInfo = BanManager.GetBanInfo(player.UserId)
+    
+    -- If not in cache, check Global DataStore
+    if not banInfo then
+        local globalData, success = DataStore.Get("GlobalBan_" .. player.UserId)
+        if success and globalData then
+            banInfo = globalData
+            BanCache[player.UserId] = globalData
+        end
+    end
+
+    if banInfo then
+        local isGlobal = banInfo.IsGlobal == true
+        local kickMessage = (isGlobal and "[GLOBAL BAN] " or "[BAN] ") .. (banInfo.Reason or "No reason provided.")
+        
         if not banInfo.Permanent then
             local currentTime = os.time()
             local banExpireTime = banInfo.BannedAt + banInfo.Duration
             local remainingSeconds = banExpireTime - currentTime
-            if remainingSeconds > 0 then
-                local minutes = math.floor(remainingSeconds / 60)
-                local seconds = remainingSeconds % 60
-                kickMessage = kickMessage .. " (Expires in " .. minutes .. "m " .. seconds .. "s)"
+            
+            if remainingSeconds <= 0 then
+                -- Ban expired
+                BanManager.UnbanPlayer(player.UserId, isGlobal)
+                return false
             end
+            
+            local minutes = math.floor(remainingSeconds / 60)
+            local seconds = remainingSeconds % 60
+            kickMessage = kickMessage .. " (Expires in " .. minutes .. "m " .. seconds .. "s)"
         end
+        
         player:Kick(kickMessage)
         return true
     end

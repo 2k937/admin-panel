@@ -202,10 +202,61 @@ function UI.CreateModernDashboard(playerData)
                 Action = "warnings"
             },
             {
+                Name = "History",
+                Icon = "📜",
+                Color = Colors.Success,
+                Action = "history"
+            },
+            {
                 Name = "Settings",
                 Icon = "⚙️",
                 Color = Colors.TextDim,
                 Action = "settings"
+            }
+        }
+    }
+end
+
+function UI.CreatePlayerDetailsView(historyData, banData, warningData)
+    return {
+        Type = "PlayerDetails",
+        Title = "Player Management",
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Data
+        History = historyData,
+        BanStatus = banData,
+        Warnings = warningData,
+        
+        -- Sections
+        Sections = {
+            {
+                Name = "Statistics",
+                Icon = "📊",
+                Items = {
+                    { Label = "Total Joins", Value = historyData.TotalJoins or 0 },
+                    { Label = "Total Playtime", Value = math.floor((historyData.TotalPlayTime or 0) / 60) .. " mins" },
+                    { Label = "First Joined", Value = os.date("%Y-%m-%d", historyData.FirstJoin or 0) },
+                    { Label = "Last Joined", Value = os.date("%Y-%m-%d", historyData.LastJoin or 0) }
+                }
+            },
+            {
+                Name = "Moderation",
+                Icon = "🛡️",
+                Items = {
+                    { Label = "Ban Status", Value = banData and (banData.Permanent and "Permanent" or "Temporary") or "None" },
+                    { Label = "Warnings", Value = #warningData .. " warnings" }
+                },
+                Actions = {
+                    { Name = "Warn", Color = Colors.Warning, Action = "warn" },
+                    { Name = "Ban", Color = Colors.Danger, Action = "ban" },
+                    { Name = "Global Ban", Color = Color3.fromRGB(150, 0, 0), Action = "globalban" }
+                }
             }
         }
     }

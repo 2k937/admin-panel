@@ -6,6 +6,7 @@ local RankManager = require(script.Parent.RankManager)
 local BanManager = require(script.Parent.BanManager)
 local AntiExploit = require(script.Parent.AntiExploit)
 local TagManager = require(script.Parent.TagManager)
+local HistoryManager = require(script.Parent.HistoryManager)
 local Config = require(script.Parent.Parent.Shared.Config)
 require(script.Parent.CommandsList)
 
@@ -45,6 +46,10 @@ local GetCommandInfo = Instance.new("RemoteFunction")
 GetCommandInfo.Name = "NexusAdmin_GetCommandInfo"
 GetCommandInfo.Parent = ReplicatedStorage
 
+local GetPlayerDetails = Instance.new("RemoteFunction")
+GetPlayerDetails.Name = "NexusAdmin_GetPlayerDetails"
+GetPlayerDetails.Parent = ReplicatedStorage
+
 local NotifyEvent = Instance.new("RemoteEvent")
 NotifyEvent.Name = "NexusAdmin_Notify"
 NotifyEvent.Parent = ReplicatedStorage
@@ -80,6 +85,9 @@ Players.PlayerAdded:Connect(function(player)
         return
     end
 
+    -- Track history
+    HistoryManager.OnPlayerJoin(player)
+
     -- Start Anti-Exploit monitoring
     AntiExploit.StartMonitoring(player)
     AntiExploit.MonitorBackdoor(player)
@@ -100,6 +108,11 @@ Players.PlayerAdded:Connect(function(player)
         task.wait(2) -- Wait for client to load
         notifyPlayer(player, "Welcome, " .. player.DisplayName, "Rank: " .. permission.RankName .. " (Level " .. tostring(level) .. ")")
     end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    HistoryManager.OnPlayerLeave(player)
+    AntiExploit.StopMonitoring(player)
 end)
 
 print("Nexus Admin Initialized Successfully")
@@ -125,4 +138,17 @@ end
 
 GetCommandInfo.OnServerInvoke = function(player, commandName)
     return CommandManager.GetCommandInfo(commandName)
+end
+
+GetPlayerDetails.OnServerInvoke = function(player, targetUserId)
+    local permission = RankManager.GetPermissionData(player)
+    if not permission.CanOpen then return nil end
+    
+    local WarningManager = require(script.Parent.WarningManager)
+    
+    return {
+        History = HistoryManager.GetPlayerHistory(targetUserId),
+        BanInfo = BanManager.GetBanInfo(targetUserId),
+        Warnings = WarningManager.GetPlayerWarnings(targetUserId)
+    }
 end

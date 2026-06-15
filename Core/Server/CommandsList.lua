@@ -75,10 +75,63 @@ CommandManager.RegisterCommand("ban", 60, function(executor, args)
     end
 
     for _, target in pairs(targets) do
-        BanManager.BanPlayer(target.UserId, reason, duration)
+        BanManager.BanPlayer(target.UserId, reason, duration, false)
         notify(executor, "Nexus Admin", "Banned " .. target.Name)
     end
 end, "Bans the specified player(s) - Usage: :ban <player> [duration|permanent] [reason]")
+
+CommandManager.RegisterCommand("gban", 80, function(executor, args)
+    local BanManager = require(script.Parent.BanManager)
+    local targetName = args[1]
+    local reason = table.concat(args, " ", 2) or "Globally banned by an admin."
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :gban <player> [reason]")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        BanManager.BanPlayer(target.UserId, reason, 0, true)
+        notify(executor, "Nexus Admin", "Globally Banned " .. target.Name)
+    end
+end, "Globally bans the specified player(s) from all places in the universe")
+
+CommandManager.RegisterCommand("history", 40, function(executor, args)
+    local HistoryManager = require(script.Parent.HistoryManager)
+    local targetName = args[1]
+
+    if not targetName then
+        notify(executor, "Nexus Admin", "Usage: :history <player>")
+        return
+    end
+
+    local targets = getPlayers(targetName, executor)
+    if #targets == 0 then
+        notify(executor, "Nexus Admin", "Player not found.")
+        return
+    end
+
+    for _, target in pairs(targets) do
+        local history = HistoryManager.GetPlayerHistory(target.UserId)
+        if history then
+            local playTimeMins = math.floor((history.TotalPlayTime or 0) / 60)
+            local firstJoin = os.date("%Y-%m-%d", history.FirstJoin or 0)
+            local info = "History for " .. target.Name .. ":\n"
+            info = info .. "Total Joins: " .. (history.TotalJoins or 1) .. "\n"
+            info = info .. "Total Playtime: " .. playTimeMins .. " minutes\n"
+            info = info .. "First Joined: " .. firstJoin
+            notify(executor, "Nexus Admin", info)
+        else
+            notify(executor, "Nexus Admin", "No history found for " .. target.Name)
+        end
+    end
+end, "Shows join and playtime history for a player")
 
 -- Moderation
 CommandManager.RegisterCommand("mute", 40, function(executor, args)
