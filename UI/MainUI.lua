@@ -208,6 +208,12 @@ function UI.CreateModernDashboard(playerData)
                 Action = "history"
             },
             {
+                Name = "World",
+                Icon = "🌍",
+                Color = Color3.fromRGB(100, 200, 100),
+                Action = "world"
+            },
+            {
                 Name = "Settings",
                 Icon = "⚙️",
                 Color = Colors.TextDim,
@@ -256,6 +262,40 @@ function UI.CreatePlayerDetailsView(historyData, banData, warningData)
                     { Name = "Warn", Color = Colors.Warning, Action = "warn" },
                     { Name = "Ban", Color = Colors.Danger, Action = "ban" },
                     { Name = "Global Ban", Color = Color3.fromRGB(150, 0, 0), Action = "globalban" }
+                }
+            }
+        }
+    }
+end
+
+function UI.CreateWorldSettingsView(currentSettings)
+    return {
+        Type = "WorldSettings",
+        Title = "Live Game Settings",
+        Subtitle = "Manage server environment (Level 80+ only)",
+        
+        -- Modern styling
+        BackgroundColor = Colors.Primary,
+        TextColor = Colors.Text,
+        AccentColor = Colors.Accent,
+        CornerRadius = 12,
+        
+        -- Controls
+        Controls = {
+            {
+                Name = "Environment",
+                Icon = "🌤️",
+                Items = {
+                    { Label = "Gravity", Type = "Slider", Min = 0, Max = 500, Value = currentSettings.Gravity, Action = "SetGravity" },
+                    { Label = "Time of Day", Type = "TextInput", Placeholder = "e.g., 12:00:00", Value = currentSettings.TimeOfDay, Action = "SetTime" }
+                }
+            },
+            {
+                Name = "Global Physics",
+                Icon = "🏃",
+                Items = {
+                    { Label = "Global WalkSpeed", Type = "Slider", Min = 0, Max = 100, Value = currentSettings.WalkSpeed, Action = "SetGlobalWalkSpeed" },
+                    { Label = "Global JumpPower", Type = "Slider", Min = 0, Max = 200, Value = currentSettings.JumpPower, Action = "SetGlobalJumpPower" }
                 }
             }
         }

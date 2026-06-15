@@ -450,6 +450,51 @@ CommandManager.RegisterCommand("goto", 60, function(executor, args)
     end
 end, "Teleports you to a player")
 
+-- World Settings
+CommandManager.RegisterCommand("gravity", 80, function(executor, args)
+    local WorldManager = require(script.Parent.WorldManager)
+    local val = tonumber(args[1])
+    if val then
+        WorldManager.SetGravity(val)
+        notify(executor, "Nexus Admin", "Server gravity set to " .. val)
+    else
+        notify(executor, "Nexus Admin", "Usage: :gravity <number>")
+    end
+end, "Sets server gravity")
+
+CommandManager.RegisterCommand("time", 80, function(executor, args)
+    local WorldManager = require(script.Parent.WorldManager)
+    local val = args[1]
+    if val then
+        WorldManager.SetTime(val)
+        notify(executor, "Nexus Admin", "Server time set to " .. val)
+    else
+        notify(executor, "Nexus Admin", "Usage: :time <string (e.g. 12:00:00)>")
+    end
+end, "Sets server time")
+
+CommandManager.RegisterCommand("globalwalkspeed", 80, function(executor, args)
+    local WorldManager = require(script.Parent.WorldManager)
+    local val = tonumber(args[1])
+    if val then
+        WorldManager.SetGlobalWalkSpeed(val)
+        notify(executor, "Nexus Admin", "Global WalkSpeed set to " .. val)
+    else
+        notify(executor, "Nexus Admin", "Usage: :globalwalkspeed <number>")
+    end
+end, "Sets WalkSpeed for all players")
+
+CommandManager.RegisterCommand("globaljumppower", 80, function(executor, args)
+    local WorldManager = require(script.Parent.WorldManager)
+    local val = tonumber(args[1])
+    if val then
+        WorldManager.SetGlobalJumpPower(val)
+        notify(executor, "Nexus Admin", "Global JumpPower set to " .. val)
+    else
+        notify(executor, "Nexus Admin", "Usage: :globaljumppower <number>")
+    end
+end, "Sets JumpPower for all players")
+
 CommandManager.RegisterCommand("bans", 60, function(executor, args)
     local BanManager = require(script.Parent.BanManager)
     local activeBans = BanManager.GetActiveBans()

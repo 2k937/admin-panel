@@ -50,6 +50,10 @@ local GetPlayerDetails = Instance.new("RemoteFunction")
 GetPlayerDetails.Name = "NexusAdmin_GetPlayerDetails"
 GetPlayerDetails.Parent = ReplicatedStorage
 
+local GetWorldSettings = Instance.new("RemoteFunction")
+GetWorldSettings.Name = "NexusAdmin_GetWorldSettings"
+GetWorldSettings.Parent = ReplicatedStorage
+
 local NotifyEvent = Instance.new("RemoteEvent")
 NotifyEvent.Name = "NexusAdmin_Notify"
 NotifyEvent.Parent = ReplicatedStorage
@@ -151,4 +155,12 @@ GetPlayerDetails.OnServerInvoke = function(player, targetUserId)
         BanInfo = BanManager.GetBanInfo(targetUserId),
         Warnings = WarningManager.GetPlayerWarnings(targetUserId)
     }
+end
+
+GetWorldSettings.OnServerInvoke = function(player)
+    local permission = RankManager.GetPermissionData(player)
+    if permission.Level < 80 then return nil end
+    
+    local WorldManager = require(script.Parent.WorldManager)
+    return WorldManager.GetSettings()
 end
