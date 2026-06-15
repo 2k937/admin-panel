@@ -57,14 +57,13 @@ local Config = {
     CommandLevels = {
         kick = 40,
         ban = 60,
+        gban = 80,
         unban = 60,
         warn = 20,
         mute = 40,
         unmute = 40,
         jail = 40,
         unjail = 40,
-        mute = 40,
-        unmute = 40,
         announce = 60,
         message = 60,
         pm = 20,
@@ -76,14 +75,18 @@ local Config = {
         kill = 20,
         rank = 80,
         unrank = 80,
-        warn = 40,
         warnings = 40,
         viewinfo = 40,
         bring = 60,
         goto = 60,
         bans = 40,
         tag = 80,
-        untag = 80
+        untag = 80,
+        history = 40,
+        gravity = 80,
+        time = 80,
+        globalwalkspeed = 80,
+        globaljumppower = 80
     },
 
     -- Command Aliases
