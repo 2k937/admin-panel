@@ -8,7 +8,9 @@ const {
   ButtonBuilder, 
   ButtonStyle,
   ComponentType,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  ChannelType,
+  OverwriteType
 } = require('discord.js');
 const fs = require('fs');
 const dotenv = require('dotenv');
@@ -34,6 +36,7 @@ const DEVELOPER_IDS = process.env.DEVELOPER_IDS ? process.env.DEVELOPER_IDS.spli
 let MOD_ROLES = []; // Array of role IDs for moderators
 
 const WARNINGS_FILE = 'warnings.json';
+const CONFIG_FILE = 'config.json';
 
 // Load warnings
 let warnings = {};
@@ -43,9 +46,22 @@ if (fs.existsSync(WARNINGS_FILE)) {
   fs.writeFileSync(WARNINGS_FILE, JSON.stringify({}, null, 2));
 }
 
+// Load config (for jail settings)
+let config = { jail_role: null, jail_channel: null };
+if (fs.existsSync(CONFIG_FILE)) {
+  config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+} else {
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
 // Save warnings
 function saveWarnings() {
   fs.writeFileSync(WARNINGS_FILE, JSON.stringify(warnings, null, 2));
+}
+
+// Save config
+function saveConfig() {
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
 // Check if user has permission
@@ -105,12 +121,9 @@ client.on('messageCreate', async message => {
   const command = args.shift().toLowerCase();
   const member = message.member;
 
-  // General & Fun commands are accessible to all
-  const generalCommands = ['ping', 'help'];
-  const funCommands = ['8ball', 'hug', 'slap', 'joke', 'coinflip', 'roll', 'meme', 'fact'];
-  
-  const isModCmd = ['warn', 'warnings', 'clearwarns', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unban', 'requestban'].includes(command);
-  const isDevCmd = ['modrole', 'eval', 'restart', 'stats', 'servers'].includes(command);
+  // Command categories
+  const isModCmd = ['warn', 'warnings', 'clearwarns', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unban', 'requestban', 'softbans', 'unjail'].includes(command);
+  const isDevCmd = ['modrole', 'eval', 'restart', 'stats', 'servers', 'devrole', 'jailsetup'].includes(command);
 
   if (isModCmd && !hasModPermission(member)) {
     return message.reply('You do not have permission to use moderation commands.');
@@ -134,7 +147,7 @@ client.on('messageCreate', async message => {
   const reason = args.slice(idIndex).join(' ') || 'No reason provided';
 
   // Hierarchy check for mod commands
-  const hierarchyCommands = ['warn', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute'];
+  const hierarchyCommands = ['warn', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unjail'];
   if (hierarchyCommands.includes(command) && target) {
     if (!canModerate(member, target)) {
       return message.reply('You cannot moderate this user (self or hierarchy).');
@@ -177,6 +190,49 @@ client.on('messageCreate', async message => {
       break;
 
     // --- Moderation Commands ---
+    case 'softbans':
+        try {
+            const bans = await message.guild.bans.fetch();
+            const softbans = bans.filter(b => b.reason && b.reason.toLowerCase().includes('softban'));
+            
+            if (softbans.size === 0) return message.reply('No softbans found.');
+
+            const softbanEmbed = new EmbedBuilder()
+                .setTitle('Softbanned Users')
+                .setColor('Orange')
+                .setTimestamp();
+
+            const softbanOptions = softbans.map(b => ({
+                label: b.user.tag,
+                description: `ID: ${b.user.id}`,
+                value: `unsoftban_${b.user.id}`
+            })).slice(0, 25);
+
+            const softbanRow = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('manage_softbans')
+                    .setPlaceholder('Select a user to unban')
+                    .addOptions(softbanOptions)
+            );
+
+            message.reply({ embeds: [softbanEmbed], components: [softbanRow] });
+        } catch (e) {
+            message.reply('Failed to fetch bans.');
+        }
+        break;
+
+    case 'unjail':
+        if (!target) return message.reply('Please mention a user to unjail.');
+        if (!config.jail_role) return message.reply('Jail system is not set up. Use `:jailsetup`.');
+        
+        try {
+            await target.roles.remove(config.jail_role);
+            message.reply(`Unjailed ${target.user.tag}.`);
+        } catch (e) {
+            message.reply(`Failed to unjail: ${e.message}`);
+        }
+        break;
+
     case 'requestban':
         if (!target && !args[0]) return message.reply('Please mention a user or provide a user ID.');
         const targetId = target ? target.id : args[0].replace(/[<@!>]/g, '').trim();
@@ -336,8 +392,8 @@ client.on('messageCreate', async message => {
 
     case 'softban':
       if (!target) return message.reply('Please mention a user to softban.');
-      await message.guild.bans.create(target.id, { reason, deleteMessageSeconds: 604800 });
-      await message.guild.bans.remove(target.id, 'Softban');
+      await message.guild.bans.create(target.id, { reason: `Softban: ${reason}`, deleteMessageSeconds: 604800 });
+      await message.guild.bans.remove(target.id, 'Softban reset');
       const softBanEmbed = new EmbedBuilder()
         .setTitle('Softbanned')
         .setDescription(`You have been softbanned from ${message.guild.name}`)
@@ -406,8 +462,8 @@ client.on('messageCreate', async message => {
         break;
 
     case 'coinflip':
-        const result = Math.random() < 0.5 ? 'Heads' : 'Tails';
-        message.reply(`🪙 The coin landed on: **${result}**!`);
+        const coinResult = Math.random() < 0.5 ? 'Heads' : 'Tails';
+        message.reply(`🪙 The coin landed on: **${coinResult}**!`);
         break;
 
     case 'roll':
@@ -431,12 +487,85 @@ client.on('messageCreate', async message => {
         break;
 
     // --- Developer Commands ---
+    case 'devrole':
+        if (!target) return message.reply('Please mention a user or provide an ID.');
+        const devRoleIdOrMention = args[1];
+        if (!devRoleIdOrMention) return message.reply('Provide a role ID or mention.');
+        
+        let devRoleId = devRoleIdOrMention.replace(/[<@&>]/g, '');
+        const devRole = message.guild.roles.cache.get(devRoleId);
+        
+        if (!devRole) return message.reply('Role not found.');
+        
+        try {
+            if (target.roles.cache.has(devRoleId)) {
+                await target.roles.remove(devRole);
+                message.reply(`Removed role ${devRole.name} from ${target.user.tag}.`);
+            } else {
+                await target.roles.add(devRole);
+                message.reply(`Added role ${devRole.name} to ${target.user.tag}.`);
+            }
+        } catch (e) {
+            message.reply(`Failed to manage role: ${e.message}`);
+        }
+        break;
+
+    case 'jailsetup':
+        await message.reply('Setting up jail system...');
+        try {
+            // Create Jail Role
+            let jailRole = message.guild.roles.cache.find(r => r.name === 'Jailed');
+            if (!jailRole) {
+                jailRole = await message.guild.roles.create({
+                    name: 'Jailed',
+                    color: '#000000',
+                    reason: 'Jail system setup'
+                });
+            }
+
+            // Create Jail Channel
+            let jailChannel = message.guild.channels.cache.find(c => c.name === 'jail' && c.type === ChannelType.GuildText);
+            if (!jailChannel) {
+                jailChannel = await message.guild.channels.create({
+                    name: 'jail',
+                    type: ChannelType.GuildText,
+                    permissionOverwrites: [
+                        {
+                            id: message.guild.id,
+                            deny: [PermissionFlagsBits.ViewChannel],
+                        },
+                        {
+                            id: jailRole.id,
+                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                        }
+                    ]
+                });
+            }
+
+            // Update all channels to hide from Jailed role
+            message.guild.channels.cache.forEach(async (channel) => {
+                if (channel.id !== jailChannel.id) {
+                    await channel.permissionOverwrites.edit(jailRole, {
+                        ViewChannel: false
+                    }).catch(() => {});
+                }
+            });
+
+            config.jail_role = jailRole.id;
+            config.jail_channel = jailChannel.id;
+            saveConfig();
+
+            message.reply(`Jail system setup complete! Role: ${jailRole}, Channel: ${jailChannel}`);
+        } catch (e) {
+            message.reply(`Setup failed: ${e.message}`);
+        }
+        break;
+
     case 'modrole':
       const roleIdOrMention = args[0];
       if (!roleIdOrMention) return message.reply('Provide a role ID or mention.');
       
-      let roleId = roleIdOrMention;
-      if (message.mentions.roles.first()) roleId = message.mentions.roles.first().id;
+      let roleId = roleIdOrMention.replace(/[<@&>]/g, '');
       
       if (MOD_ROLES.includes(roleId)) {
         MOD_ROLES = MOD_ROLES.filter(id => id !== roleId);
@@ -448,10 +577,10 @@ client.on('messageCreate', async message => {
       break;
 
     case 'eval':
-        const code = args.join(' ');
-        if (!code) return message.reply('Provide code to evaluate.');
+        const evalCode = args.join(' ');
+        if (!evalCode) return message.reply('Provide code to evaluate.');
         try {
-            let evaled = eval(code);
+            let evaled = eval(evalCode);
             if (typeof evaled !== 'string') evaled = require('util').inspect(evaled);
             message.reply(`\`\`\`js\n${evaled.substring(0, 1900)}\n\`\`\``);
         } catch (err) {
@@ -509,6 +638,17 @@ client.on('interactionCreate', async interaction => {
         await interaction.update({ content: 'Warning deleted successfully!', embeds: [], components: [] });
     }
 
+    if (interaction.customId === 'manage_softbans') {
+        if (!hasModPermission(interaction.member)) return interaction.reply({ content: 'No permission.', ephemeral: true });
+        const targetId = interaction.values[0].replace('unsoftban_', '');
+        try {
+            await interaction.guild.bans.remove(targetId, 'Softban removed by moderator');
+            await interaction.update({ content: `✅ Unbanned user with ID ${targetId}.`, embeds: [], components: [] });
+        } catch (e) {
+            await interaction.reply({ content: `Failed to unban: ${e.message}`, ephemeral: true });
+        }
+    }
+
     if (interaction.customId === 'help_menu') {
         const category = interaction.values[0];
         const helpEmbed = new EmbedBuilder().setColor('Blue');
@@ -524,12 +664,12 @@ client.on('interactionCreate', async interaction => {
                 break;
             case 'help_mod':
                 helpEmbed.setTitle('🛡️ Moderation Commands')
-                    .setDescription('`:warn`, `:warnings`, `:clearwarns`, `:kick`, `:ban`, `:unban`, `:tempban`, `:softban`, `:mute`, `:unmute`, `:requestban`');
+                    .setDescription('`:warn`, `:warnings`, `:clearwarns`, `:kick`, `:ban`, `:unban`, `:tempban`, `:softban`, `:mute`, `:unmute`, `:requestban`, `:softbans`, `:unjail`');
                 break;
             case 'help_dev':
                 if (!isDeveloper(interaction.user.id)) return interaction.reply({ content: 'Restricted.', ephemeral: true });
                 helpEmbed.setTitle('💻 Developer Commands')
-                    .setDescription('`:eval`, `:restart`, `:stats`, `:servers`, `:modrole`');
+                    .setDescription('`:eval`, `:restart`, `:stats`, `:servers`, `:modrole`, `:devrole`, `:jailsetup`');
                 break;
         }
         await interaction.update({ embeds: [helpEmbed] });
