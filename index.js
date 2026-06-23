@@ -17,6 +17,8 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -37,11 +39,17 @@ let MOD_ROLES = []; // Array of role IDs for moderators
 
 const WARNINGS_FILE = 'warnings.json';
 const CONFIG_FILE = 'config.json';
+const ECONOMY_FILE = 'economy.json';
 
 // Load warnings
 let warnings = {};
 if (fs.existsSync(WARNINGS_FILE)) {
-  warnings = JSON.parse(fs.readFileSync(WARNINGS_FILE, 'utf8'));
+  try {
+    warnings = JSON.parse(fs.readFileSync(WARNINGS_FILE, 'utf8'));
+  } catch (e) {
+    console.error("Error parsing warnings file, resetting to empty.");
+    warnings = {};
+  }
 } else {
   fs.writeFileSync(WARNINGS_FILE, JSON.stringify({}, null, 2));
 }
@@ -49,9 +57,27 @@ if (fs.existsSync(WARNINGS_FILE)) {
 // Load config (for jail settings)
 let config = { jail_role: null, jail_channel: null };
 if (fs.existsSync(CONFIG_FILE)) {
-  config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  try {
+    config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  } catch (e) {
+    console.error("Error parsing config file, resetting to default.");
+    config = { jail_role: null, jail_channel: null };
+  }
 } else {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+// Load economy data
+let economy = {};
+if (fs.existsSync(ECONOMY_FILE)) {
+  try {
+    economy = JSON.parse(fs.readFileSync(ECONOMY_FILE, 'utf8'));
+  } catch (e) {
+    console.error("Error parsing economy file, resetting to empty.");
+    economy = {};
+  }
+} else {
+  fs.writeFileSync(ECONOMY_FILE, JSON.stringify({}, null, 2));
 }
 
 // Save warnings
@@ -62,6 +88,27 @@ function saveWarnings() {
 // Save config
 function saveConfig() {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+// Save economy
+function saveEconomy() {
+  fs.writeFileSync(ECONOMY_FILE, JSON.stringify(economy, null, 2));
+}
+
+// Economy Helpers
+function getBalance(userId) {
+  if (!economy[userId]) {
+    economy[userId] = { balance: 0, bank: 0, lastDaily: 0, lastWork: 0 };
+    saveEconomy();
+  }
+  return economy[userId];
+}
+
+function updateBalance(userId, amount) {
+  const user = getBalance(userId);
+  user.balance += amount;
+  saveEconomy();
+  return user.balance;
 }
 
 // Check if user has permission
@@ -82,6 +129,7 @@ function canModerate(modMember, targetMember) {
   if (!modMember || !targetMember) return false;
   if (modMember.id === targetMember.id) return false;
   if (isDeveloper(modMember.id)) return true;
+  if (targetMember.id === client.user.id) return false;
   return modMember.roles.highest.comparePositionTo(targetMember.roles.highest) > 0;
 }
 
@@ -94,6 +142,16 @@ async function sendDM(user, content) {
   }
 }
 
+// Helper for readable embeds
+function createEmbed(title, description, color = 'Blue') {
+    return new EmbedBuilder()
+        .setTitle(title)
+        .setDescription(description)
+        .setColor(color)
+        .setTimestamp()
+        .setFooter({ text: 'Bot System', iconURL: client.user.displayAvatarURL() });
+}
+
 client.once('ready', () => {
   console.log(`Bot is ready! Logged in as ${client.user.tag}`);
 
@@ -103,7 +161,9 @@ client.once('ready', () => {
     "staff actions",
     "ban appeals",
     "server safety",
-    "moderation logs"
+    "moderation logs",
+    "gambling mini-games",
+    "economy system"
   ];
 
   let i = 0;
@@ -115,63 +175,121 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async message => {
-  if (message.author.bot || !message.guild || !message.content.startsWith(PREFIX)) return;
+  if (message.author.bot || !message.guild) return;
+
+  // AI Auto-Moderation
+  if (!hasModPermission(message.member) && message.content.length > 0) {
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a content moderator. Analyze the message for extreme toxicity, slurs, or highly inappropriate behavior. If the message contains slurs or is extremely inappropriate, respond with 'BAN'. Otherwise, respond with 'PASS'. Do not provide any other text."
+                    },
+                    { role: "user", content: message.content }
+                ],
+                temperature: 0,
+                max_tokens: 5
+            })
+        });
+
+        const data = await response.json();
+        const result = data.choices[0].message.content.trim();
+
+        if (result.includes('BAN')) {
+            const banReason = "AI Moderation: Use of slurs or extreme inappropriate behavior.";
+            const dmEmbed = createEmbed('⚠️ Banned', `You have been banned from **${message.guild.name}** for violating our community guidelines (slurs/extreme behavior).`, 'Red');
+            
+            await sendDM(message.author, { embeds: [dmEmbed] });
+            await message.delete().catch(() => {});
+            await message.guild.members.ban(message.author.id, { reason: banReason });
+            
+            return message.channel.send({ embeds: [createEmbed('AI Auto-Mod', `Banned **${message.author.tag}** for slurs/extreme inappropriate behavior.`, 'Red')] });
+        }
+    } catch (e) {
+        console.error("AI Moderation Error:", e);
+    }
+  }
+
+  if (!message.content.startsWith(PREFIX)) return;
 
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
   const member = message.member;
 
   // Command categories
-  const isModCmd = ['warn', 'warnings', 'clearwarns', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unban', 'requestban', 'softbans', 'unjail'].includes(command);
-  const isDevCmd = ['modrole', 'eval', 'restart', 'stats', 'servers', 'devrole', 'jailsetup'].includes(command);
+  const modCmds = ['warn', 'warnings', 'clearwarns', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unban', 'requestban', 'softbans', 'jail', 'unjail', 'lock', 'unlock', 'purge', 'slowmode'];
+  const devCmds = ['modrole', 'eval', 'restart', 'stats', 'servers', 'jailsetup', 'maintenance', 'leaveserver', 'broadcast', 'setstatus', 'guilds', 'nuke', 'tempadmin', 'untempadmin', 'givemoney', 'resetmoney'];
+  const funCmds = ['coinflip', 'roll', 'meme', 'fact', 'slots', 'blackjack', 'gamble'];
+  const economyCmds = ['balance', 'bal', 'daily', 'work', 'pay', 'deposit', 'dep', 'withdraw', 'with'];
+
+  const isModCmd = modCmds.includes(command);
+  const isDevCmd = devCmds.includes(command);
+  const isFunCmd = funCmds.includes(command);
+  const isEconomyCmd = economyCmds.includes(command);
 
   if (isModCmd && !hasModPermission(member)) {
-    return message.reply('You do not have permission to use moderation commands.');
+    return message.reply({ embeds: [createEmbed('Permission Denied', 'You do not have permission to use moderation commands.', 'Red')] });
+  }
+
+  // Specific permission checks
+  if (['ban', 'softban', 'tempban', 'unban'].includes(command)) {
+    if (!member.permissions.has(PermissionFlagsBits.BanMembers) && !isDeveloper(message.author.id)) {
+        return message.reply({ embeds: [createEmbed('Permission Denied', 'You need the **Ban Members** permission to use this command.', 'Red')] });
+    }
+  }
+
+  if (command === 'kick') {
+    if (!member.permissions.has(PermissionFlagsBits.KickMembers) && !isDeveloper(message.author.id)) {
+        return message.reply({ embeds: [createEmbed('Permission Denied', 'You need the **Kick Members** permission to use this command.', 'Red')] });
+    }
   }
 
   if (isDevCmd && !isDeveloper(message.author.id)) {
-    return message.reply('This command is restricted to developers only.');
+    return message.reply({ embeds: [createEmbed('Permission Denied', 'This command is restricted to developers only.', 'Red')] });
   }
 
   // Target resolution (mention or ID)
   let target = message.mentions.members.first();
-  let idIndex = 0;
+  let idUsed = false;
   if (!target && args[0]) {
     const possibleId = args[0].replace(/[<@!>]/g, '').trim();
     if (possibleId.length >= 17) {
         target = await message.guild.members.fetch(possibleId).catch(() => null);
-        idIndex = 1;
+        idUsed = true;
     }
   }
 
-  const reason = args.slice(idIndex).join(' ') || 'No reason provided';
+  // If we have a target, the reason starts from args[1]
+  const reason = (target || idUsed) ? args.slice(1).join(' ') || 'No reason provided' : args.join(' ') || 'No reason provided';
 
   // Hierarchy check for mod commands
-  const hierarchyCommands = ['warn', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'unjail'];
+  const hierarchyCommands = ['warn', 'kick', 'ban', 'tempban', 'softban', 'mute', 'timeout', 'unmute', 'jail', 'unjail'];
   if (hierarchyCommands.includes(command) && target) {
     if (!canModerate(member, target)) {
-      return message.reply('You cannot moderate this user (self or hierarchy).');
+      return message.reply({ embeds: [createEmbed('Hierarchy Error', 'You cannot moderate this user due to role hierarchy.', 'Red')] });
     }
   }
 
   switch (command) {
     // --- General Commands ---
     case 'ping':
-      const pingEmbed = new EmbedBuilder()
-        .setColor('Green')
-        .setDescription(`🏓 Latency: **${Math.round(client.ws.ping)}ms**`);
-      message.reply({ embeds: [pingEmbed] });
+      message.reply({ embeds: [createEmbed('🏓 Pong!', `Latency: **${Math.round(client.ws.ping)}ms**`, 'Green')] });
       break;
 
     case 'help':
-      const helpEmbed = new EmbedBuilder()
-        .setTitle('Bot Help Menu')
-        .setDescription('Select a category from the dropdown below to view commands.')
-        .setColor('Blue');
-
+      const helpEmbed = createEmbed('Bot Help Menu', 'Select a category from the dropdown below to view commands.');
       const helpOptions = [
         { label: 'General', description: 'Basic commands for everyone', value: 'help_general', emoji: '🌐' },
-        { label: 'Fun', description: 'Entertainment commands', value: 'help_fun', emoji: '🎮' },
+        { label: 'Economy', description: 'Money and earnings', value: 'help_economy', emoji: '💰' },
+        { label: 'Fun & Gambling', description: 'Games and entertainment', value: 'help_fun', emoji: '🎮' },
         { label: 'Moderation', description: 'Staff moderation tools', value: 'help_mod', emoji: '🛡️' }
       ];
 
@@ -189,85 +307,194 @@ client.on('messageCreate', async message => {
       message.reply({ embeds: [helpEmbed], components: [helpRow] });
       break;
 
-    // --- Moderation Commands ---
-    case 'softbans':
-        try {
-            const bans = await message.guild.bans.fetch();
-            const softbans = bans.filter(b => b.reason && b.reason.toLowerCase().includes('softban'));
-            
-            if (softbans.size === 0) return message.reply('No softbans found.');
+    // --- Economy Commands ---
+    case 'bal':
+    case 'balance':
+        const balTarget = target || message.member;
+        const balData = getBalance(balTarget.id);
+        const balEmbed = createEmbed(`${balTarget.user.username}'s Balance`, `**Wallet:** $${balData.balance.toLocaleString()}\n**Bank:** $${balData.bank.toLocaleString()}\n**Total:** $${(balData.balance + balData.bank).toLocaleString()}`, 'Gold');
+        message.reply({ embeds: [balEmbed] });
+        break;
 
-            const softbanEmbed = new EmbedBuilder()
-                .setTitle('Softbanned Users')
-                .setColor('Orange')
-                .setTimestamp();
-
-            const softbanOptions = softbans.map(b => ({
-                label: b.user.tag,
-                description: `ID: ${b.user.id}`,
-                value: `unsoftban_${b.user.id}`
-            })).slice(0, 25);
-
-            const softbanRow = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('manage_softbans')
-                    .setPlaceholder('Select a user to unban')
-                    .addOptions(softbanOptions)
-            );
-
-            message.reply({ embeds: [softbanEmbed], components: [softbanRow] });
-        } catch (e) {
-            message.reply('Failed to fetch bans.');
+    case 'daily':
+        const dailyUser = getBalance(message.author.id);
+        const now = Date.now();
+        const cooldown = 24 * 60 * 60 * 1000;
+        if (now - dailyUser.lastDaily < cooldown) {
+            const remaining = cooldown - (now - dailyUser.lastDaily);
+            const hours = Math.floor(remaining / (60 * 60 * 1000));
+            const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+            return message.reply(`You've already claimed your daily reward! Come back in **${hours}h ${minutes}m**.`);
         }
+        const dailyAmount = 500;
+        dailyUser.balance += dailyAmount;
+        dailyUser.lastDaily = now;
+        saveEconomy();
+        message.reply({ embeds: [createEmbed('Daily Reward', `You claimed your daily reward of **$${dailyAmount}**!`, 'Green')] });
+        break;
+
+    case 'work':
+        const workUser = getBalance(message.author.id);
+        const workNow = Date.now();
+        const workCooldown = 60 * 60 * 1000; // 1 hour
+        if (workNow - workUser.lastWork < workCooldown) {
+            const remaining = workCooldown - (workNow - workUser.lastWork);
+            const minutes = Math.floor(remaining / (60 * 1000));
+            const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+            return message.reply(`You're too tired! Work again in **${minutes}m ${seconds}s**.`);
+        }
+        const jobs = ['Programmer', 'Doctor', 'Chef', 'Artist', 'Streamer', 'Janitor'];
+        const job = jobs[Math.floor(Math.random() * jobs.length)];
+        const workAmount = Math.floor(Math.random() * 200) + 50;
+        workUser.balance += workAmount;
+        workUser.lastWork = workNow;
+        saveEconomy();
+        message.reply({ embeds: [createEmbed('Work', `You worked as a **${job}** and earned **$${workAmount}**!`, 'Blue')] });
+        break;
+
+    case 'dep':
+    case 'deposit':
+        let depAmount = args[0];
+        const depUser = getBalance(message.author.id);
+        if (!depAmount) return message.reply('Specify an amount to deposit.');
+        if (depAmount.toLowerCase() === 'all') depAmount = depUser.balance;
+        depAmount = parseInt(depAmount);
+        if (isNaN(depAmount) || depAmount <= 0) return message.reply('Invalid amount.');
+        if (depUser.balance < depAmount) return message.reply('You don\'t have enough money in your wallet.');
+        depUser.balance -= depAmount;
+        depUser.bank += depAmount;
+        saveEconomy();
+        message.reply(`Successfully deposited **$${depAmount}** into your bank.`);
+        break;
+
+    case 'with':
+    case 'withdraw':
+        let withAmount = args[0];
+        const withUser = getBalance(message.author.id);
+        if (!withAmount) return message.reply('Specify an amount to withdraw.');
+        if (withAmount.toLowerCase() === 'all') withAmount = withUser.bank;
+        withAmount = parseInt(withAmount);
+        if (isNaN(withAmount) || withAmount <= 0) return message.reply('Invalid amount.');
+        if (withUser.bank < withAmount) return message.reply('You don\'t have enough money in your bank.');
+        withUser.bank -= withAmount;
+        withUser.balance += withAmount;
+        saveEconomy();
+        message.reply(`Successfully withdrew **$${withAmount}** from your bank.`);
+        break;
+
+    case 'pay':
+        if (!target) return message.reply('Mention someone to pay.');
+        let payAmount = parseInt(args[1]);
+        if (isNaN(payAmount) || payAmount <= 0) return message.reply('Invalid amount.');
+        const sender = getBalance(message.author.id);
+        if (sender.balance < payAmount) return message.reply('You don\'t have enough money in your wallet.');
+        const receiver = getBalance(target.id);
+        sender.balance -= payAmount;
+        receiver.balance += payAmount;
+        saveEconomy();
+        message.reply(`You paid **$${payAmount}** to ${target.user.tag}.`);
+        break;
+
+    // --- Gambling Commands ---
+    case 'gamble':
+        let bet = args[0];
+        const gUser = getBalance(message.author.id);
+        if (!bet) return message.reply('Specify a bet amount.');
+        if (bet.toLowerCase() === 'all') bet = gUser.balance;
+        bet = parseInt(bet);
+        if (isNaN(bet) || bet <= 0) return message.reply('Invalid bet.');
+        if (gUser.balance < bet) return message.reply('You don\'t have enough money.');
+
+        const userRoll = Math.floor(Math.random() * 100) + 1;
+        const botRoll = Math.floor(Math.random() * 100) + 1;
+
+        if (userRoll > botRoll) {
+            gUser.balance += bet;
+            message.reply({ embeds: [createEmbed('Gambling Win', `You rolled **${userRoll}** and I rolled **${botRoll}**.\nYou won **$${bet}**!`, 'Green')] });
+        } else if (userRoll < botRoll) {
+            gUser.balance -= bet;
+            message.reply({ embeds: [createEmbed('Gambling Loss', `You rolled **${userRoll}** and I rolled **${botRoll}**.\nYou lost **$${bet}**.`, 'Red')] });
+        } else {
+            message.reply({ embeds: [createEmbed('Gambling Tie', `We both rolled **${userRoll}**. It's a tie!`, 'Grey')] });
+        }
+        saveEconomy();
+        break;
+
+    case 'slots':
+        let sBet = parseInt(args[0]);
+        const sUser = getBalance(message.author.id);
+        if (isNaN(sBet) || sBet <= 0) return message.reply('Specify a valid bet amount.');
+        if (sUser.balance < sBet) return message.reply('You don\'t have enough money.');
+
+        const emojis = ['🍒', '🍋', '🍇', '💎', '🔔'];
+        const slot1 = emojis[Math.floor(Math.random() * emojis.length)];
+        const slot2 = emojis[Math.floor(Math.random() * emojis.length)];
+        const slot3 = emojis[Math.floor(Math.random() * emojis.length)];
+
+        let sResult = `[ ${slot1} | ${slot2} | ${slot3} ]\n\n`;
+        if (slot1 === slot2 && slot2 === slot3) {
+            const win = sBet * 5;
+            sUser.balance += win;
+            sResult += `JACKPOT! You won **$${win}**!`;
+            message.reply({ embeds: [createEmbed('Slots', sResult, 'Green')] });
+        } else if (slot1 === slot2 || slot2 === slot3 || slot1 === slot3) {
+            const win = sBet * 2;
+            sUser.balance += win;
+            sResult += `Nice! You won **$${win}**!`;
+            message.reply({ embeds: [createEmbed('Slots', sResult, 'Yellow')] });
+        } else {
+            sUser.balance -= sBet;
+            sResult += `Better luck next time. You lost **$${sBet}**.`;
+            message.reply({ embeds: [createEmbed('Slots', sResult, 'Red')] });
+        }
+        saveEconomy();
+        break;
+
+    // --- Moderation Commands ---
+    case 'lock':
+        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
+        message.reply({ embeds: [createEmbed('Channel Locked', `This channel has been locked by ${message.author.tag}.`, 'Orange')] });
+        break;
+
+    case 'unlock':
+        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null });
+        message.reply({ embeds: [createEmbed('Channel Unlocked', `This channel has been unlocked by ${message.author.tag}.`, 'Green')] });
+        break;
+
+    case 'purge':
+        const amount = parseInt(args[0]);
+        if (isNaN(amount) || amount < 1 || amount > 100) return message.reply('Please provide a number between 1 and 100.');
+        await message.channel.bulkDelete(amount, true);
+        message.channel.send({ embeds: [createEmbed('Purge Complete', `Deleted ${amount} messages.`, 'Green')] }).then(m => setTimeout(() => m.delete(), 5000));
+        break;
+
+    case 'slowmode':
+        const seconds = parseInt(args[0]);
+        if (isNaN(seconds)) return message.reply('Please provide a valid number of seconds.');
+        await message.channel.setRateLimitPerUser(seconds);
+        message.reply({ embeds: [createEmbed('Slowmode Updated', `Slowmode has been set to ${seconds} seconds.`, 'Blue')] });
+        break;
+
+    case 'jail':
+        if (!target) return message.reply('Please mention a user to jail.');
+        if (!config.jail_role) return message.reply('Jail system is not set up. Use `:jailsetup`.');
+        try {
+            await target.roles.add(config.jail_role);
+            message.reply({ embeds: [createEmbed('User Jailed', `Successfully jailed ${target.user.tag}.`, 'Orange')] });
+            if (config.jail_channel) {
+                const jailChannel = message.guild.channels.cache.get(config.jail_channel);
+                if (jailChannel) jailChannel.send({ embeds: [createEmbed('Jail Log', `User: ${target.user.tag}\nModerator: ${message.author.tag}\nReason: ${reason}`, '#000000')] });
+            }
+        } catch (e) { message.reply(`Error: ${e.message}`); }
         break;
 
     case 'unjail':
         if (!target) return message.reply('Please mention a user to unjail.');
-        if (!config.jail_role) return message.reply('Jail system is not set up. Use `:jailsetup`.');
-        
+        if (!config.jail_role) return message.reply('Jail system is not set up.');
         try {
             await target.roles.remove(config.jail_role);
-            message.reply(`Unjailed ${target.user.tag}.`);
-        } catch (e) {
-            message.reply(`Failed to unjail: ${e.message}`);
-        }
-        break;
-
-    case 'requestban':
-        if (!target && !args[0]) return message.reply('Please mention a user or provide a user ID.');
-        const targetId = target ? target.id : args[0].replace(/[<@!>]/g, '').trim();
-        const targetTag = target ? target.user.tag : `ID: ${targetId}`;
-        
-        const devPings = DEVELOPER_IDS.map(id => `<@${id}>`).join(' ');
-        
-        const requestEmbed = new EmbedBuilder()
-            .setTitle('Ban Request')
-            .setDescription(`A moderator has requested a ban on a user.`)
-            .addFields(
-                { name: 'Moderator', value: `${message.author} (${message.author.tag})` },
-                { name: 'Target', value: `${targetTag} (${targetId})` },
-                { name: 'Reason', value: reason }
-            )
-            .setColor('Orange')
-            .setTimestamp();
-
-        const requestButtons = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`approve_ban_${targetId}`)
-                .setLabel('Approve')
-                .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-                .setCustomId(`deny_ban_${targetId}`)
-                .setLabel('Deny')
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        message.channel.send({ 
-            content: `${devPings}\nModerator ${message.author.tag} requested a ban on user ${targetTag}`, 
-            embeds: [requestEmbed], 
-            components: [requestButtons] 
-        });
-        message.reply('Ban request sent to developers.');
+            message.reply({ embeds: [createEmbed('User Unjailed', `Successfully unjailed ${target.user.tag}.`, 'Green')] });
+        } catch (e) { message.reply(`Error: ${e.message}`); }
         break;
 
     case 'warn':
@@ -276,338 +503,318 @@ client.on('messageCreate', async message => {
       warnings[target.id].push({ reason, moderator: message.author.tag, timestamp: new Date().toISOString() });
       saveWarnings();
 
-      const warnEmbed = new EmbedBuilder()
-        .setTitle('Warning Issued')
-        .setDescription(`You have been warned in ${message.guild.name}`)
-        .addFields(
-          { name: 'Reason', value: reason },
-          { name: 'Moderator', value: message.author.tag }
-        )
-        .setColor('Yellow')
-        .setTimestamp();
+      const warnCount = warnings[target.id].length;
+      let punishmentType = '';
 
+      // Auto-punishment logic
+      try {
+          if (warnCount === 3) {
+              punishmentType = '5-hour timeout';
+              await target.timeout(5 * 60 * 60 * 1000, 'Automatic punishment: 3 warnings');
+          } else if (warnCount === 5) {
+              punishmentType = 'Kick';
+              await target.kick('Automatic punishment: 5 warnings');
+          } else if (warnCount === 7) {
+              punishmentType = '7-day Temp-ban';
+              await message.guild.bans.create(target.id, { reason: 'Automatic punishment: 7 warnings' });
+          } else if (warnCount >= 8) {
+              punishmentType = 'Permanent Ban';
+              await message.guild.bans.create(target.id, { reason: 'Automatic punishment: 8+ warnings' });
+          }
+
+          if (punishmentType) {
+              const automodEmbed = createEmbed('⚠️ AutoMod Action', `You have been actioned by **AutoMod** in **${message.guild.name}**.`, 'Red');
+              automodEmbed.addFields(
+                  { name: 'Action', value: punishmentType, inline: true },
+                  { name: 'Reason', value: `Accumulated ${warnCount} warnings.`, inline: true }
+              );
+              await sendDM(target.user, { embeds: [automodEmbed] });
+          }
+      } catch (e) {
+          console.error(`Failed to apply auto-punishment: ${e.message}`);
+      }
+
+      const warnEmbed = createEmbed('Warning Issued', `You have been warned in ${message.guild.name}\nReason: ${reason}\nTotal Warnings: ${warnCount}`, 'Yellow');
       await sendDM(target.user, { embeds: [warnEmbed] });
-      message.reply(`Warned ${target.user.tag}.`);
+      message.reply({ embeds: [createEmbed('Warning Issued', `Warned ${target.user.tag}. (Total: ${warnCount})${punishmentType ? `\n**AutoMod Action:** ${punishmentType}` : ''}`, 'Yellow')] });
       break;
 
     case 'warnings':
       if (!target) return message.reply('Please mention a user.');
       const userWarnings = warnings[target.id] || [];
-      const warnListEmbed = new EmbedBuilder()
-        .setTitle(`Warnings for ${target.user.tag}`)
-        .setColor('Blue')
-        .setTimestamp();
+      const warnListEmbed = createEmbed(`Warnings for ${target.user.tag}`, userWarnings.length === 0 ? 'No warnings.' : '', 'Blue');
+      if (userWarnings.length === 0) return message.reply({ embeds: [warnListEmbed] });
 
-      if (userWarnings.length === 0) {
-        warnListEmbed.setDescription('No warnings.');
-        return message.reply({ embeds: [warnListEmbed] });
-      }
+      userWarnings.forEach((w, i) => {
+        warnListEmbed.addFields({ name: `Warning #${i + 1}`, value: `Reason: ${w.reason}\nModerator: ${w.moderator}\nDate: ${new Date(w.timestamp).toLocaleDateString()}` });
+      });
 
-      const options = userWarnings.map((w, i) => ({
-        label: `Warning ${i+1}`,
-        description: `${w.reason.substring(0, 80)}`,
-        value: `${target.id}_${i}`
-      }));
-
-      const row = new ActionRowBuilder().addComponents(
+      const warnRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId('delete_warning')
-          .setPlaceholder('Select warning to delete')
-          .addOptions(options)
+          .setPlaceholder('Select a warning to delete')
+          .addOptions(userWarnings.map((w, i) => ({ label: `Warning #${i + 1}`, value: `${target.id}_${i}` })))
       );
 
-      await message.reply({ 
-        embeds: [warnListEmbed], 
-        components: [row] 
-      });
+      message.reply({ embeds: [warnListEmbed], components: [warnRow] });
       break;
 
     case 'clearwarns':
       if (!target) return message.reply('Please mention a user.');
       delete warnings[target.id];
       saveWarnings();
-      message.reply(`Cleared warnings for ${target.user.tag}.`);
+      message.reply({ embeds: [createEmbed('Warnings Cleared', `Cleared all warnings for ${target.user.tag}.`, 'Green')] });
       break;
 
     case 'kick':
       if (!target) return message.reply('Please mention a user to kick.');
-      if (!target.kickable) return message.reply('Cannot kick this user.');
       await target.kick(reason);
-      const kickEmbed = new EmbedBuilder()
-        .setTitle('Kicked')
-        .setDescription(`You have been kicked from ${message.guild.name}`)
-        .addFields({ name: 'Reason', value: reason })
-        .setColor('Red')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [kickEmbed] });
-      message.reply(`Kicked ${target.user.tag}.`);
+      message.reply({ embeds: [createEmbed('User Kicked', `Kicked ${target.user.tag}\nReason: ${reason}`, 'Orange')] });
       break;
 
     case 'ban':
       if (!target) return message.reply('Please mention a user to ban.');
-      await message.guild.bans.create(target.id, { reason, deleteMessageSeconds: 86400 });
-      const banEmbed = new EmbedBuilder()
-        .setTitle('Banned')
-        .setDescription(`You have been banned from ${message.guild.name}`)
-        .addFields({ name: 'Reason', value: reason })
-        .setColor('DarkRed')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [banEmbed] });
-      message.reply(`Banned ${target.user.tag}.`);
-      break;
-
-    case 'unban':
-      const unbanId = args[0];
-      if (!unbanId) return message.reply('Provide a user ID to unban.');
-      try {
-        await message.guild.bans.remove(unbanId, reason);
-        message.reply(`Unbanned user with ID ${unbanId}.`);
-      } catch (e) {
-        message.reply('Failed to unban. Make sure the ID is correct and user is banned.');
-      }
+      await target.ban({ reason });
+      message.reply({ embeds: [createEmbed('User Banned', `Banned ${target.user.tag}\nReason: ${reason}`, 'Red')] });
       break;
 
     case 'tempban':
-      if (!target) return message.reply('Please mention a user to temp ban.');
-      const durationArg = args[1];
-      if (!durationArg) return message.reply('Provide duration like 1h, 2d.');
-      const timeMs = parseDuration(durationArg);
-      if (!timeMs) return message.reply('Invalid duration.');
-      
-      await message.guild.bans.create(target.id, { reason, deleteMessageSeconds: 86400 });
-      const tempBanEmbed = new EmbedBuilder()
-        .setTitle('Temporarily Banned')
-        .setDescription(`You have been temporarily banned from ${message.guild.name} for ${durationArg}`)
-        .addFields({ name: 'Reason', value: reason })
-        .setColor('DarkRed')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [tempBanEmbed] });
-      
+      if (!target) return message.reply('Please mention a user.');
+      const duration = args[1];
+      const ms = parseDuration(duration);
+      if (!ms) return message.reply('Invalid duration. Use: 10m, 1h, 1d');
+      await target.ban({ reason });
+      message.reply({ embeds: [createEmbed('Temp-Ban Issued', `Banned ${target.user.tag} for ${duration}.\nReason: ${reason}`, 'Red')] });
       setTimeout(async () => {
-        await message.guild.bans.remove(target.id, 'Temp ban expired').catch(() => {});
-      }, timeMs);
-      
-      message.reply(`Temp banned ${target.user.tag} for ${durationArg}.`);
-      break;
-
-    case 'softban':
-      if (!target) return message.reply('Please mention a user to softban.');
-      await message.guild.bans.create(target.id, { reason: `Softban: ${reason}`, deleteMessageSeconds: 604800 });
-      await message.guild.bans.remove(target.id, 'Softban reset');
-      const softBanEmbed = new EmbedBuilder()
-        .setTitle('Softbanned')
-        .setDescription(`You have been softbanned from ${message.guild.name}`)
-        .addFields({ name: 'Reason', value: reason })
-        .setColor('Orange')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [softBanEmbed] });
-      message.reply(`Softbanned ${target.user.tag}.`);
+        await message.guild.members.unban(target.id).catch(() => {});
+      }, ms);
       break;
 
     case 'mute':
     case 'timeout':
-      if (!target) return message.reply('Please mention a user to mute.');
-      const muteDurationArg = args[1] || '1h';
-      const muteTimeMs = parseDuration(muteDurationArg);
-      if (!muteTimeMs) return message.reply('Invalid duration.');
-      
-      await target.timeout(muteTimeMs, reason);
-      const muteEmbed = new EmbedBuilder()
-        .setTitle('Muted')
-        .setDescription(`You have been muted in ${message.guild.name} for ${muteDurationArg}`)
-        .addFields({ name: 'Reason', value: reason })
-        .setColor('Yellow')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [muteEmbed] });
-      message.reply(`Muted ${target.user.tag} for ${muteDurationArg}.`);
+      if (!target) return message.reply('Please mention a user.');
+      const tDuration = args[1];
+      const tMs = parseDuration(tDuration);
+      if (!tMs) return message.reply('Invalid duration. Use: 10m, 1h, 1d');
+      await target.timeout(tMs, reason);
+      message.reply({ embeds: [createEmbed('User Muted', `Muted ${target.user.tag} for ${tDuration}.\nReason: ${reason}`, 'Grey')] });
       break;
 
     case 'unmute':
-      if (!target) return message.reply('Please mention a user to unmute.');
-      await target.timeout(null, reason);
-      const unmuteEmbed = new EmbedBuilder()
-        .setTitle('Unmuted')
-        .setDescription(`You have been unmuted in ${message.guild.name}`)
-        .setColor('Green')
-        .setTimestamp();
-      await sendDM(target.user, { embeds: [unmuteEmbed] });
-      message.reply(`Unmuted ${target.user.tag}.`);
+      if (!target) return message.reply('Please mention a user.');
+      await target.timeout(null);
+      message.reply({ embeds: [createEmbed('User Unmuted', `Unmuted ${target.user.tag}.`, 'Green')] });
       break;
+
+    case 'unban':
+      const unbanId = args[0];
+      if (!unbanId) return message.reply('Please provide a user ID.');
+      await message.guild.members.unban(unbanId);
+      message.reply({ embeds: [createEmbed('User Unbanned', `Unbanned ID: ${unbanId}`, 'Green')] });
+      break;
+
+    case 'requestban':
+        if (!target) return message.reply('Mention a user to request a ban for.');
+        const requestEmbed = createEmbed('Ban Request', `**Target:** ${target.user.tag} (${target.id})\n**Moderator:** ${message.author.tag}\n**Reason:** ${reason}`, 'Orange');
+        const requestRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`approve_ban_${target.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`deny_ban_${target.id}`).setLabel('Deny').setStyle(ButtonStyle.Danger)
+        );
+        message.reply('Ban request sent to developers.');
+        DEVELOPER_IDS.forEach(async (devId) => {
+            const dev = await client.users.fetch(devId).catch(() => null);
+            if (dev) dev.send({ embeds: [requestEmbed], components: [requestRow] });
+        });
+        break;
+
+    case 'softban':
+        if (!target) return message.reply('Mention a user to softban.');
+        await target.ban({ reason: `Softban: ${reason}`, deleteMessageSeconds: 7 * 24 * 60 * 60 });
+        await message.guild.members.unban(target.id);
+        message.reply({ embeds: [createEmbed('User Softbanned', `Softbanned ${target.user.tag}. Messages from last 7 days cleared.`, 'Orange')] });
+        break;
+
+    case 'softbans':
+        const bans = await message.guild.bans.fetch();
+        const softbanList = bans.filter(b => b.reason && b.reason.startsWith('Softban')).map(b => `• ${b.user.tag} (${b.user.id})`).join('\n') || 'No softbans found.';
+        const softbanEmbed = createEmbed('Softban List', softbanList);
+        const softbanRow = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId('manage_softbans')
+                .setPlaceholder('Select a user to unban')
+                .addOptions(bans.filter(b => b.reason && b.reason.startsWith('Softban')).map(b => ({ label: b.user.tag, value: `unsoftban_${b.user.id}` })))
+        );
+        message.reply({ embeds: [softbanEmbed], components: bans.size > 0 ? [softbanRow] : [] });
+        break;
 
     // --- Fun Commands ---
-    case '8ball':
-      const answers = ["Yes", "No", "Maybe", "Ask again later", "Definitely", "Outlook not so good"];
-      message.reply(`🎱 ${answers[Math.floor(Math.random() * answers.length)]}`);
-      break;
-
-    case 'hug':
-      if (target) message.reply(`🤗 ${message.author} hugged ${target}!`);
-      else message.reply('Hug someone! :hug @user');
-      break;
-
-    case 'slap':
-      if (target) message.reply(`👋 ${message.author} slapped ${target}!`);
-      else message.reply('Slap someone! :slap @user');
-      break;
-
-    case 'joke':
-        const jokes = [
-            "Why don't scientists trust atoms? Because they make up everything!",
-            "I told my wife she was drawing her eyebrows too high. She looked surprised.",
-            "Parallel lines have so much in common. It’s a shame they’ll never meet.",
-            "What do you call a fake noodle? An impasta!",
-            "Why did the scarecrow win an award? Because he was outstanding in his field!"
-        ];
-        message.reply(`😂 ${jokes[Math.floor(Math.random() * jokes.length)]}`);
-        break;
-
     case 'coinflip':
-        const coinResult = Math.random() < 0.5 ? 'Heads' : 'Tails';
-        message.reply(`🪙 The coin landed on: **${coinResult}**!`);
-        break;
+      const cResult = Math.random() > 0.5 ? 'Heads' : 'Tails';
+      message.reply({ embeds: [createEmbed('🪙 Coin Flip', `The coin landed on: **${cResult}**`, 'Gold')] });
+      break;
 
     case 'roll':
-        const die = Math.floor(Math.random() * 6) + 1;
-        message.reply(`🎲 You rolled a **${die}**!`);
-        break;
+      const die = Math.floor(Math.random() * 6) + 1;
+      message.reply({ embeds: [createEmbed('🎲 Dice Roll', `You rolled a: **${die}**`, 'Purple')] });
+      break;
 
     case 'meme':
-        message.reply('🖼️ Here is a "meme": [Insert funny image here]');
+        try {
+            const res = await fetch('https://meme-api.com/gimme');
+            const data = await res.json();
+            const memeEmbed = new EmbedBuilder()
+                .setTitle(data.title)
+                .setImage(data.url)
+                .setURL(data.postLink)
+                .setColor('Random')
+                .setFooter({ text: `r/${data.subreddit} | 👍 ${data.ups}` });
+            message.reply({ embeds: [memeEmbed] });
+        } catch (e) { message.reply('Failed to fetch a meme.'); }
         break;
 
     case 'fact':
-        const facts = [
-            "Honey never spoils.",
-            "A day on Venus is longer than a year on Venus.",
-            "Bananas are berries, but strawberries aren't.",
-            "Octopuses have three hearts.",
-            "Wombat poop is cube-shaped."
-        ];
-        message.reply(`💡 Did you know? ${facts[Math.floor(Math.random() * facts.length)]}`);
-        break;
+      const facts = [
+        "Honey never spoils.",
+        "A day on Venus is longer than a year on Venus.",
+        "Bananas are berries, but strawberries aren't.",
+        "Octopuses have three hearts."
+      ];
+      const fact = facts[Math.floor(Math.random() * facts.length)];
+      message.reply({ embeds: [createEmbed('💡 Random Fact', fact, 'LightGrey')] });
+      break;
 
     // --- Developer Commands ---
-    case 'devrole':
-        if (!target) return message.reply('Please mention a user or provide an ID.');
-        const devRoleIdOrMention = args[1];
-        if (!devRoleIdOrMention) return message.reply('Provide a role ID or mention.');
-        
-        let devRoleId = devRoleIdOrMention.replace(/[<@&>]/g, '');
-        const devRole = message.guild.roles.cache.get(devRoleId);
-        
-        if (!devRole) return message.reply('Role not found.');
-        
-        try {
-            if (target.roles.cache.has(devRoleId)) {
-                await target.roles.remove(devRole);
-                message.reply(`Removed role ${devRole.name} from ${target.user.tag}.`);
-            } else {
-                await target.roles.add(devRole);
-                message.reply(`Added role ${devRole.name} to ${target.user.tag}.`);
+    case 'givemoney':
+        if (!target) return message.reply('Mention someone to give money to.');
+        const amountToGive = parseInt(args[1]);
+        if (isNaN(amountToGive)) return message.reply('Invalid amount.');
+        updateBalance(target.id, amountToGive);
+        message.reply({ embeds: [createEmbed('Money Added', `Added **$${amountToGive}** to ${target.user.tag}'s wallet.`, 'Green')] });
+        break;
+
+    case 'resetmoney':
+        if (!target) return message.reply('Mention someone to reset.');
+        economy[target.id] = { balance: 0, bank: 0, lastDaily: 0, lastWork: 0 };
+        saveEconomy();
+        message.reply({ embeds: [createEmbed('Money Reset', `Reset economy data for ${target.user.tag}.`, 'Orange')] });
+        break;
+
+    case 'nuke':
+        const nukeChannel = message.channel;
+        const newChannel = await nukeChannel.clone();
+        await nukeChannel.delete();
+        newChannel.send({ embeds: [createEmbed('Channel Nuked', 'This channel has been nuked and recreated by a developer.', 'Red')] });
+        break;
+
+    case 'maintenance':
+        const mMode = args[0] === 'on';
+        client.maintenance = mMode;
+        message.reply({ embeds: [createEmbed('Maintenance Mode', `Maintenance mode is now **${mMode ? 'ON' : 'OFF'}**.`, mMode ? 'Red' : 'Green')] });
+        break;
+
+    case 'leaveserver':
+        const guildId = args[0] || message.guild.id;
+        const guildToLeave = client.guilds.cache.get(guildId);
+        if (!guildToLeave) return message.reply('Guild not found.');
+        await guildToLeave.leave();
+        message.reply(`Left guild: ${guildToLeave.name}`);
+        break;
+
+    case 'broadcast':
+    case 'announce':
+        const announcement = args.join(' ');
+        if (!announcement) return message.reply('Provide a message to broadcast.');
+        client.guilds.cache.forEach(g => {
+            const channel = g.channels.cache.find(c => c.type === ChannelType.GuildText && c.permissionsFor(g.members.me).has(PermissionFlagsBits.SendMessages));
+            if (channel) {
+                const announceEmbed = new EmbedBuilder()
+                    .setTitle('📢 Global Announcement')
+                    .setDescription(announcement)
+                    .setColor('Purple')
+                    .setTimestamp();
+                channel.send({ embeds: [announceEmbed] }).catch(() => {});
             }
-        } catch (e) {
-            message.reply(`Failed to manage role: ${e.message}`);
-        }
+        });
+        message.reply('Broadcast sent to all servers.');
+        break;
+
+    case 'setstatus':
+        const statusType = args[0]; // online, idle, dnd, invisible
+        const statusText = args.slice(1).join(' ');
+        client.user.setPresence({ status: statusType || 'online', activities: [{ name: statusText || 'managing server' }] });
+        message.reply('Status updated.');
+        break;
+
+    case 'guilds':
+    case 'servers':
+        const guildsList = client.guilds.cache.map(g => `• ${g.name} (${g.id}) - ${g.memberCount} members`).join('\n');
+        message.reply({ embeds: [createEmbed('Server List', guildsList.substring(0, 2048), 'Blue')] });
+        break;
+
+    case 'eval':
+        const evalCode = args.join(' ');
+        try {
+            let evaled = eval(evalCode);
+            if (typeof evaled !== 'string') evaled = require('util').inspect(evaled);
+            message.reply(`\`\`\`js\n${evaled.substring(0, 1900)}\n\`\`\``);
+        } catch (err) { message.reply(`\`\`\`js\n${err}\n\`\`\``); }
+        break;
+
+    case 'stats':
+        const stats = `Servers: ${client.guilds.cache.size}\nUsers: ${client.users.cache.size}\nUptime: ${Math.round(client.uptime / 60000)}m`;
+        message.reply({ embeds: [createEmbed('Bot Stats', stats, 'Purple')] });
+        break;
+
+    case 'restart':
+        await message.reply('Restarting...');
+        process.exit();
         break;
 
     case 'jailsetup':
         await message.reply('Setting up jail system...');
         try {
-            // Create Jail Role
             let jailRole = message.guild.roles.cache.find(r => r.name === 'Jailed');
-            if (!jailRole) {
-                jailRole = await message.guild.roles.create({
-                    name: 'Jailed',
-                    color: '#000000',
-                    reason: 'Jail system setup'
-                });
-            }
-
-            // Create Jail Channel
+            if (!jailRole) jailRole = await message.guild.roles.create({ name: 'Jailed', color: '#000000', reason: 'Jail system setup' });
             let jailChannel = message.guild.channels.cache.find(c => c.name === 'jail' && c.type === ChannelType.GuildText);
-            if (!jailChannel) {
-                jailChannel = await message.guild.channels.create({
-                    name: 'jail',
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        {
-                            id: message.guild.id,
-                            deny: [PermissionFlagsBits.ViewChannel],
-                        },
-                        {
-                            id: jailRole.id,
-                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                        }
-                    ]
-                });
-            }
-
-            // Update all channels to hide from Jailed role
-            message.guild.channels.cache.forEach(async (channel) => {
-                if (channel.id !== jailChannel.id) {
-                    await channel.permissionOverwrites.edit(jailRole, {
-                        ViewChannel: false
-                    }).catch(() => {});
-                }
-            });
-
-            config.jail_role = jailRole.id;
-            config.jail_channel = jailChannel.id;
-            saveConfig();
-
+            if (!jailChannel) jailChannel = await message.guild.channels.create({ name: 'jail', type: ChannelType.GuildText, permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, { id: jailRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }] });
+            message.guild.channels.cache.forEach(async (channel) => { if (channel.id !== jailChannel.id) await channel.permissionOverwrites.edit(jailRole, { ViewChannel: false }).catch(() => {}); });
+            config.jail_role = jailRole.id; config.jail_channel = jailChannel.id; saveConfig();
             message.reply(`Jail system setup complete! Role: ${jailRole}, Channel: ${jailChannel}`);
-        } catch (e) {
-            message.reply(`Setup failed: ${e.message}`);
-        }
+        } catch (e) { message.reply(`Setup failed: ${e.message}`); }
         break;
 
     case 'modrole':
-      const roleIdOrMention = args[0];
-      if (!roleIdOrMention) return message.reply('Provide a role ID or mention.');
-      
-      let roleId = roleIdOrMention.replace(/[<@&>]/g, '');
-      
-      if (MOD_ROLES.includes(roleId)) {
-        MOD_ROLES = MOD_ROLES.filter(id => id !== roleId);
-        message.reply(`Removed mod role: ${roleId}`);
-      } else {
-        MOD_ROLES.push(roleId);
-        message.reply(`Added mod role: ${roleId}.`);
-      }
-      break;
+        const roleIdOrMention = args[0];
+        if (!roleIdOrMention) return message.reply('Provide a role ID or mention.');
+        let roleId = roleIdOrMention.replace(/[<@&>]/g, '');
+        if (MOD_ROLES.includes(roleId)) { MOD_ROLES = MOD_ROLES.filter(id => id !== roleId); message.reply(`Removed mod role: ${roleId}`); }
+        else { MOD_ROLES.push(roleId); message.reply(`Added mod role: ${roleId}.`); }
+        break;
 
-    case 'eval':
-        const evalCode = args.join(' ');
-        if (!evalCode) return message.reply('Provide code to evaluate.');
+    case 'tempadmin':
         try {
-            let evaled = eval(evalCode);
-            if (typeof evaled !== 'string') evaled = require('util').inspect(evaled);
-            message.reply(`\`\`\`js\n${evaled.substring(0, 1900)}\n\`\`\``);
-        } catch (err) {
-            message.reply(`\`\`\`js\n${err}\n\`\`\``);
-        }
+            let adminRole = message.guild.roles.cache.find(r => r.name === 'Temp Admin');
+            if (!adminRole) {
+                adminRole = await message.guild.roles.create({
+                    name: 'Temp Admin',
+                    permissions: [PermissionFlagsBits.Administrator],
+                    reason: 'Temporary admin role requested by developer'
+                });
+            }
+            const adminTarget = target || message.member;
+            await adminTarget.roles.add(adminRole);
+            message.reply({ embeds: [createEmbed('Temp Admin Assigned', `Successfully gave **Administrator** permissions to ${adminTarget.user.tag} via the 'Temp Admin' role.`, 'Green')] });
+        } catch (e) { message.reply(`Error: ${e.message}`); }
         break;
 
-    case 'restart':
-        await message.reply('Restarting bot...');
-        process.exit();
-        break;
-
-    case 'stats':
-        const statsEmbed = new EmbedBuilder()
-            .setTitle('Bot Statistics')
-            .addFields(
-                { name: 'Servers', value: `${client.guilds.cache.size}`, inline: true },
-                { name: 'Users', value: `${client.users.cache.size}`, inline: true },
-                { name: 'Uptime', value: `${Math.round(client.uptime / 60000)} minutes`, inline: true }
-            )
-            .setColor('Purple');
-        message.reply({ embeds: [statsEmbed] });
-        break;
-
-    case 'servers':
-        const serverList = client.guilds.cache.map(g => `${g.name} (${g.id})`).join('\n');
-        message.reply(`Connected to:\n${serverList.substring(0, 1900)}`);
+    case 'untempadmin':
+        try {
+            const adminRole = message.guild.roles.cache.find(r => r.name === 'Temp Admin');
+            if (!adminRole) return message.reply('No Temp Admin role found.');
+            const unAdminTarget = target || message.member;
+            await unAdminTarget.roles.remove(adminRole);
+            message.reply({ embeds: [createEmbed('Temp Admin Removed', `Successfully removed **Administrator** permissions from ${unAdminTarget.user.tag}.`, 'Orange')] });
+        } catch (e) { message.reply(`Error: ${e.message}`); }
         break;
 
     default:
@@ -615,26 +822,42 @@ client.on('messageCreate', async message => {
   }
 });
 
-// Interaction handlers
 client.on('interactionCreate', async interaction => {
-  // Select Menu Handlers
   if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'help_menu') {
+        const category = interaction.values[0];
+        let title = 'Help Menu';
+        let description = '';
+
+        if (category === 'help_general') {
+            title = '🌐 General Commands';
+            description = '`:ping` - Check bot latency\n`:help` - Show this menu';
+        } else if (category === 'help_economy') {
+            title = '💰 Economy Commands';
+            description = '`:bal` - Check balance\n`:daily` - Claim daily reward\n`:work` - Earn money\n`:pay` - Give money to others\n`:dep` - Deposit to bank\n`:with` - Withdraw from bank';
+        } else if (category === 'help_fun') {
+            title = '🎮 Fun & Gambling';
+            description = '`:coinflip` - Flip a coin\n`:roll` - Roll a die\n`:meme` - Get a random meme\n`:fact` - Get a random fact\n`:gamble` - Bet money on a roll\n`:slots` - Play the slot machine';
+        } else if (category === 'help_mod') {
+            title = '🛡️ Moderation Commands';
+            description = '`:warn`, `:warnings`, `:clearwarns`, `:kick`, `:ban`, `:unban`, `:tempban`, `:softban`, `:mute`, `:timeout`, `:unmute`, `:requestban`, `:softbans`, `:jail`, `:unjail`, `:lock`, `:unlock`, `:purge`, `:slowmode`';
+        } else if (category === 'help_dev') {
+            title = '💻 Developer Commands';
+            description = '`:eval`, `:restart`, `:stats`, `:servers`, `:modrole`, `:jailsetup`, `:maintenance`, `:leaveserver`, `:broadcast`, `:setstatus`, `:guilds`, `:nuke`, `:tempadmin`, `:untempadmin`, `:givemoney`, `:resetmoney`';
+        }
+
+        const embed = createEmbed(title, description);
+        await interaction.update({ embeds: [embed] }).catch(console.error);
+    }
+
     if (interaction.customId === 'delete_warning') {
         const [userId, indexStr] = interaction.values[0].split('_');
         const index = parseInt(indexStr);
-      
-        if (!warnings[userId] || !warnings[userId][index]) {
-          return interaction.reply({ content: 'Warning not found.', ephemeral: true });
-        }
-      
-        if (!hasModPermission(interaction.member)) {
-          return interaction.reply({ content: 'No permission.', ephemeral: true });
-        }
-      
+        if (!warnings[userId] || !warnings[userId][index]) return interaction.reply({ content: 'Warning not found.', ephemeral: true });
+        if (!hasModPermission(interaction.member)) return interaction.reply({ content: 'No permission.', ephemeral: true });
         warnings[userId].splice(index, 1);
         if (warnings[userId].length === 0) delete warnings[userId];
         saveWarnings();
-      
         await interaction.update({ content: 'Warning deleted successfully!', embeds: [], components: [] });
     }
 
@@ -644,63 +867,27 @@ client.on('interactionCreate', async interaction => {
         try {
             await interaction.guild.bans.remove(targetId, 'Softban removed by moderator');
             await interaction.update({ content: `✅ Unbanned user with ID ${targetId}.`, embeds: [], components: [] });
-        } catch (e) {
-            await interaction.reply({ content: `Failed to unban: ${e.message}`, ephemeral: true });
-        }
-    }
-
-    if (interaction.customId === 'help_menu') {
-        const category = interaction.values[0];
-        const helpEmbed = new EmbedBuilder().setColor('Blue');
-
-        switch (category) {
-            case 'help_general':
-                helpEmbed.setTitle('🌐 General Commands')
-                    .setDescription('`:ping`, `:help`');
-                break;
-            case 'help_fun':
-                helpEmbed.setTitle('🎮 Fun Commands')
-                    .setDescription('`:8ball`, `:hug`, `:slap`, `:joke`, `:coinflip`, `:roll`, `:meme`, `:fact`');
-                break;
-            case 'help_mod':
-                helpEmbed.setTitle('🛡️ Moderation Commands')
-                    .setDescription('`:warn`, `:warnings`, `:clearwarns`, `:kick`, `:ban`, `:unban`, `:tempban`, `:softban`, `:mute`, `:unmute`, `:requestban`, `:softbans`, `:unjail`');
-                break;
-            case 'help_dev':
-                if (!isDeveloper(interaction.user.id)) return interaction.reply({ content: 'Restricted.', ephemeral: true });
-                helpEmbed.setTitle('💻 Developer Commands')
-                    .setDescription('`:eval`, `:restart`, `:stats`, `:servers`, `:modrole`, `:devrole`, `:jailsetup`');
-                break;
-        }
-        await interaction.update({ embeds: [helpEmbed] });
+        } catch (e) { await interaction.reply({ content: `Failed to unban: ${e.message}`, ephemeral: true }); }
     }
   }
 
-  // Button Handlers
   if (interaction.isButton()) {
     if (interaction.customId.startsWith('approve_ban_') || interaction.customId.startsWith('deny_ban_')) {
-        if (!isDeveloper(interaction.user.id)) {
-            return interaction.reply({ content: 'Only developers can approve/deny ban requests.', ephemeral: true });
-        }
-
+        if (!isDeveloper(interaction.user.id)) return interaction.reply({ content: 'Only developers can approve/deny ban requests.', ephemeral: true });
         const action = interaction.customId.startsWith('approve_ban_') ? 'approved' : 'denied';
         const targetId = interaction.customId.split('_').pop();
-
         if (action === 'approved') {
             try {
                 await interaction.guild.bans.create(targetId, { reason: 'Ban request approved by developer' });
                 await interaction.update({ content: `✅ Ban request for ID ${targetId} has been **approved** and the user has been banned.`, embeds: [], components: [] });
-            } catch (e) {
-                await interaction.reply({ content: `Failed to ban user: ${e.message}`, ephemeral: true });
-            }
-        } else {
-            await interaction.update({ content: `❌ Ban request for ID ${targetId} has been **denied**.`, embeds: [], components: [] });
-        }
+            } catch (e) { await interaction.reply({ content: `Failed to ban user: ${e.message}`, ephemeral: true }); }
+        } else { await interaction.update({ content: `❌ Ban request for ID ${targetId} has been **denied**.`, embeds: [], components: [] }); }
     }
   }
 });
 
 function parseDuration(duration) {
+  if (!duration) return null;
   const match = duration.match(/^(\d+)([mhd])$/i);
   if (!match) return null;
   const num = parseInt(match[1]);
